@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "ScreenAI Extension",
+  "version": "1.0.0",
+  "description": "ScreenAI floating assistant extension",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs",
+    "desktopCapture"
+  ],
+  "host_permissions": [
+    "http://localhost:3001/*",
+    "https://localhost:3001/*"
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup-new.html",
+    "default_title": "ScreenAI Assistant",
+    "default_icon": {
+      "16": "icons/icon.svg",
+      "32": "icons/icon.svg",
+      "48": "icons/icon.svg",
+      "128": "icons/icon.svg"
+    }
+  },
+  "commands": {
+    "toggle-assistant": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Toggle ScreenAI Assistant"
+    }
+  },
+  "externally_connectable": {
+    "matches": ["http://localhost:3001/*"]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

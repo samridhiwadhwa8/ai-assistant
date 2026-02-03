@@ -1,0 +1,560 @@
+import React, { useState, useRef, useEffect } from 'react';
+import './uiux-override.css';
+
+const LlamaChatbot = () => {
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content: "Hello! I'm your LLaMA assistant. I can help analyze your screen content and respond to your voice. Try clicking '🎤 Voice' to talk to me!",
+      timestamp: new Date()
+    }
+  ]);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [sessionId, setSessionId] = useState(localStorage.getItem('sessionId') || '');
+  const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+
+  // Load session ID on component mount
+  useEffect(() => {
+    const savedSessionId = localStorage.getItem('sessionId');
+    if (savedSessionId) {
+      setSessionId(savedSessionId);
+    }
+  }, []);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const userMessage = {
+      role: "user",
+      content: input,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
+    setIsTyping(true);
+
+    try {
+      const params = new URLSearchParams({ question: input });
+      const response = await fetch(`http://localhost:8000/chat?${params}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/event-stream',
+          'X-Session-ID': sessionId || undefined
+        }
+      });
+
+      const newSessionId = response.headers.get('X-Session-ID');
+      if (newSessionId && newSessionId !== sessionId) {
+        setSessionId(newSessionId);
+        localStorage.setItem('sessionId', newSessionId);
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);  // Now it's being used
+throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantMessage = {
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+        isStreaming: true
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6).replace(/,$/, ''));
+              if (data.chunk) {
+                assistantMessage.content += data.chunk;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = { ...newMessages[newMessages.length - 1] };
+                  if (lastMessage.role === 'assistant') {
+                    lastMessage.content = assistantMessage.content;
+                  }
+                  return [...newMessages.slice(0, -1), lastMessage];
+                });
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
+            }
+          }
+        }
+      }
+
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = { ...newMessages[newMessages.length - 1] };
+        if (lastMessage.role === 'assistant') {
+          lastMessage.isStreaming = false;
+        }
+        return [...newMessages.slice(0, -1), lastMessage];
+      });
+
+    } catch (error) {
+      console.error('Error in handleSend:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `❌ Error: ${error.message}`,
+          timestamp: new Date()
+        }
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+  const analyzeScreen = async (question = "What's on my screen?") => {
+  try {
+    setIsTyping(true);
+    
+    // Add a message to show we're processing the screen
+    const processingMessage = {
+      role: "assistant",
+      content: "👀 Analyzing your screen...",
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, processingMessage]);
+
+    const response = await fetch(`http://localhost:8000/analyze-screen?question=${encodeURIComponent(question)}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'text/event-stream',
+        'X-Session-ID': sessionId || undefined
+      }
+    });
+
+    const newSessionId = response.headers.get('X-Session-ID');
+    if (newSessionId && newSessionId !== sessionId) {
+      setSessionId(newSessionId);
+      localStorage.setItem('sessionId', newSessionId);
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Server responded with ${response.status}`);
+    }
+
+    // Remove the processing message and add a new assistant message
+    setMessages(prev => {
+      const newMessages = prev.slice(0, -1);
+      return [
+        ...newMessages,
+        {
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+          isStreaming: true
+        }
+      ];
+    });
+
+    // Process the stream
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // Keep incomplete line in buffer
+      
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        
+        try {
+          const data = JSON.parse(line.substring(6).trim());
+          if (data.chunk) {
+            // Update the last message with the new chunk
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessage = { ...newMessages[newMessages.length - 1] };
+              if (lastMessage.role === 'assistant') {
+                lastMessage.content += data.chunk;
+              }
+              return [...newMessages.slice(0, -1), lastMessage];
+            });
+          }
+        } catch (e) {
+          console.error('Error parsing chunk:', e);
+        }
+      }
+    }
+
+    // Mark streaming as complete
+    setMessages(prev => {
+      const newMessages = [...prev];
+      const lastMessage = { ...newMessages[newMessages.length - 1] };
+      lastMessage.isStreaming = false;
+      return [...newMessages.slice(0, -1), lastMessage];
+    });
+    
+  } catch (error) {
+    console.error('Error analyzing screen:', error);
+    setMessages(prev => [
+      ...prev,
+      {
+        role: "assistant",
+        content: `❌ Error: ${error.message}`,
+        timestamp: new Date()
+      }
+    ]);
+  } finally {
+    setIsTyping(false);
+  }
+};
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+
+      recorder.ondataavailable = (event) => {
+        chunks.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        
+        reader.onloadend = async () => {
+          const base64Audio = reader.result.split(',')[1];
+          await sendVoiceToServer(base64Audio);
+        };
+        
+        reader.readAsDataURL(audioBlob);
+        
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      setMediaRecorder(recorder);
+      recorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "❌ Error: Could not access microphone. Please check your permissions.",
+          timestamp: new Date()
+        }
+      ]);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const sendVoiceToServer = async (audioData) => {
+    try {
+      console.log('sendVoiceToServer called with audio data length:', audioData.length);
+      setIsTyping(true);
+      
+      // Add a message to show we're processing the voice
+      const processingMessage = {
+        role: "assistant",
+        content: "🎤 Processing your voice...",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, processingMessage]);
+
+      console.log('Sending request to voice-to-text endpoint...');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch('http://localhost:8000/voice-to-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ audio: audioData }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      console.log('Response received:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Server responded with ${response.status}`);
+      }
+
+      // Handle streaming response
+      if (response.headers.get('content-type')?.includes('text/event-stream')) {
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let assistantMessage = "";
+        
+        // Add an initial assistant message for streaming
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+          isStreaming: true
+        }]);
+        
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonStr = line.substring(6).replace(/,$/, '');
+                  // Skip empty lines or malformed JSON
+                  if (!jsonStr || jsonStr.trim() === '') continue;
+                  const data = JSON.parse(jsonStr);
+                  if (data.chunk) {
+                    // Create a new variable to avoid loop reference issue
+                    const newContent = data.chunk;
+                    assistantMessage += newContent;
+                    setMessages(prev => {
+                      const newMessages = [...prev];
+                      const lastMessage = { ...newMessages[newMessages.length - 1] };
+                      if (lastMessage.role === 'assistant') {
+                        lastMessage.content = assistantMessage;
+                      }
+                      return [...newMessages.slice(0, -1), lastMessage];
+                    });
+                  }
+                } catch (e) {
+                  console.error('Error parsing chunk:', e, 'Line:', line);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (streamError) {
+      if (streamError.name === 'AbortError') {
+        console.log('Stream was aborted (timeout or user cancelled)');
+      } else {
+        console.error('Stream error:', streamError);
+      }
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const captureScreen = async () => {
+    try {
+      console.log('🚀 CAPTURE: Starting screen capture...');
+      setIsTyping(true);
+      
+      // Add a message to show we're processing the screen
+      const processingMessage = {
+        role: "assistant",
+        content: "📷 Select your current screen/window to analyze...",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, processingMessage]);
+      console.log('🚀 CAPTURE: Processing message added');
+    
+    <div className="flex flex-col h-screen bg-black/30">
+      <header className="bg-black/40 backdrop-blur-lg text-white p-4 shadow-lg border-b border-white/10">
+        <h1 className="text-xl font-bold">ScreenAI Assistant</h1>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={`flex ${
+              message.role === "user" ? "justify-end" : "justify-start"
+            }`}
+          >
+            <div
+              className={`max-w-3xl rounded-xl p-4 backdrop-blur-md ${
+                message.role === "user"
+                  ? "bg-white/15 text-white border border-white/25 rounded-br-none"
+                  : "bg-black/20 text-white rounded-bl-none border border-white/10"
+              }`}
+            >
+              <div className="whitespace-pre-wrap text-white drop-shadow-sm">{message.content}</div>
+              <div className="text-xs opacity-80 mt-2 text-white/90">
+                {formatTime(new Date(message.timestamp))}
+              </div>
+            </div>
+          </div>
+        ))}
+        {isTyping && (
+          <div className="flex items-center space-x-2 p-4">
+            <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="border-t border-white/10 p-4 bg-black/40 backdrop-blur-lg">
+        <div className="flex flex-wrap gap-2 mb-3">
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+            disabled={isTyping}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isTyping}
+            className={`px-4 py-2 rounded-lg backdrop-blur-md border transition-all ${
+              isTyping 
+                ? 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed' 
+                : 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 hover:scale-105'
+            }`}
+            title="Upload Image"
+          >
+            📤 Upload
+          </button>
+          <button
+            onClick={captureScreen}
+            disabled={isTyping}
+            className={`px-4 py-2 rounded-lg backdrop-blur-md border transition-all ${
+              isTyping 
+                ? 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed' 
+                : 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 hover:scale-105'
+            }`}
+            title="Capture Screen"
+          >
+            📷 Screen
+          </button>
+          <button
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={isTyping}
+            className={`px-4 py-2 rounded-lg backdrop-blur-md border transition-all ${
+              isRecording 
+                ? 'bg-red-500/20 border-red-500/40 text-red-400 animate-pulse hover:bg-red-500/30' 
+                : isTyping
+                  ? 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed'
+                  : 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 hover:scale-105'
+            }`}
+            title={isRecording ? "Stop Recording" : "Start Voice Recording"}
+          >
+            {isRecording ? '🔴 Recording' : '🎤 Voice'}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 mb-3">
+          <button
+            onClick={() => analyzeScreen("What's on my screen?")}
+            disabled={isTyping}
+            className={`px-4 py-2 rounded-lg backdrop-blur-md border transition-all ${
+              isTyping 
+                ? 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed' 
+                : 'bg-blue-500/20 border-blue-500/40 text-blue-300 hover:bg-blue-500/30 hover:border-blue-500/50 hover:scale-105'
+            }`}
+          >
+            👀 Analyze Screen
+          </button>
+          <button
+            onClick={() => analyzeScreen("Summarize this screen:")}
+            disabled={isTyping}
+            className={`px-4 py-2 rounded-lg backdrop-blur-md border transition-all ${
+              isTyping 
+                ? 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed' 
+                : 'bg-green-500/20 border-green-500/40 text-green-300 hover:bg-green-500/30 hover:border-green-500/50 hover:scale-105'
+            }`}
+          >
+            📝 Summarize
+          </button>
+          <button
+            onClick={() => analyzeScreen("What can I do with what's on this screen?")}
+            disabled={isTyping}
+            className={`px-4 py-2 rounded-lg backdrop-blur-md border transition-all ${
+              isTyping 
+                ? 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed' 
+                : 'bg-purple-500/20 border-purple-500/40 text-purple-300 hover:bg-purple-500/30 hover:border-purple-500/50 hover:scale-105'
+            }`}
+          >
+            💡 Suggest Actions
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type your message..."
+              className="w-full p-3 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-black placeholder-gray-600 pr-12 focus:outline-none focus:ring-2 focus:ring-white/40 resize-none"
+              rows={1}
+              style={{ minHeight: '48px', maxHeight: '200px' }}
+              disabled={isTyping}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isTyping}
+              className={`absolute right-2 bottom-2 p-2 rounded-lg transition-all ${
+                input.trim() && !isTyping
+                  ? "bg-white/20 text-white hover:bg-white/30 hover:scale-105"
+                  : "bg-white/5 text-white/40 cursor-not-allowed"
+              }`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LlamaChatbot;

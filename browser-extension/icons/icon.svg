@@ -1,0 +1,23 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4565;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="128" height="128" rx="20" fill="url(#bg)"/>
+  
+  <!-- ScreenAI Logo -->
+  <g transform="translate(64, 64)">
+    <!-- Brain/AI Icon -->
+    <path d="M -20 -15 C -25 -15, -30 -10, -30 -5 C -30 0, -25 5, -20 5 L -15 5 C -15 10, -10 15, -5 15 C 0 15, 5 10, 5 5 L 20 5 C 25 5, 30 0, 30 -5 C 30 -10, 25 -15, 20 -15 L 15 -15 C 15 -20, 10 -25, 5 -25 C 0 -25, -5 -20, -5 -15 L -20 -15 Z" 
+          fill="white" opacity="0.9"/>
+    
+    <!-- Screen Lines -->
+    <rect x="-25" y="-5" width="50" height="2" fill="white" opacity="0.7"/>
+    <rect x="-25" y="0" width="40" height="2" fill="white" opacity="0.7"/>
+    <rect x="-25" y="5" width="45" height="2" fill="white" opacity="0.7"/>
+  </g>
+</svg>

@@ -1,0 +1,272 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Lato", sans-serif;
+  overflow-x: hidden;
+  background: #0A244B;
+}
+
+.gsap-about-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Navigation */
+.gsap-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  padding: 1.5rem 2rem;
+  background: rgba(10, 36, 75, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.logo-icon {
+  color: #ef4565;
+}
+
+.nav-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.nav-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 2rem;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.nav-btn.secondary {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.nav-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.nav-btn.primary {
+  background: #ef4565;
+  color: white;
+  box-shadow: 0 4px 15px rgba(239, 69, 101, 0.4);
+}
+
+.nav-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(239, 69, 101, 0.6);
+}
+
+/* Canvas Container */
+.canvas-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.canvas {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  display: block;
+}
+
+/* Side Features */
+.side-features {
+  position: absolute;
+  top: 0;
+  height: 100vh;
+  width: 350px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding: 4rem 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.side-features.left {
+  left: 0;
+  align-items: flex-end;
+  padding-right: 2rem;
+}
+
+.side-features.right {
+  right: 0;
+  align-items: flex-start;
+  padding-left: 2rem;
+}
+
+.feature-card {
+  background: rgba(10, 36, 75, 0.95);
+  backdrop-filter: blur(15px);
+  border: 2px solid rgba(239, 69, 101, 0.5);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  max-width: 280px;
+  color: white;
+  opacity: 0;
+  transform: translateX(0);
+  transition: all 0.3s ease;
+  pointer-events: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.feature-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 40px rgba(239, 69, 101, 0.3);
+  border-color: rgba(239, 69, 101, 0.8);
+}
+
+.feature-card h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #ef4565;
+  margin-bottom: 0.75rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.feature-card p {
+  font-size: 1rem;
+  opacity: 0.9;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.headline {
+  position: fixed;
+  z-index: 2;
+  color: white;
+  font-size: 2.2rem;
+  right: 25%;
+  bottom: 40%;
+  transform: translate(20%, 40%);
+  text-align: center;
+  max-width: 400px;
+}
+
+.headline h1 {
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.headline p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #0A244B;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #ef4565;
+  box-shadow: inset 2px 2px 5px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive Design */
+@media screen and (max-width: 1024px) {
+  .headline {
+    font-size: 1rem;
+    right: 50%;
+    bottom: 25%;
+    transform: translate(50%, 50%);
+    max-width: 300px;
+  }
+  
+  .headline h1 {
+    font-size: 2rem;
+  }
+  
+  .headline p {
+    font-size: 1rem;
+  }
+  
+  .side-features {
+    width: 250px;
+    padding: 3rem 0;
+  }
+  
+  .feature-card {
+    max-width: 220px;
+    padding: 1.5rem;
+  }
+  
+  .feature-card h3 {
+    font-size: 1.2rem;
+  }
+  
+  .feature-card p {
+    font-size: 0.9rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .gsap-nav {
+    padding: 1rem;
+  }
+  
+  .nav-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .side-features {
+    display: none; /* Hide side features on mobile */
+  }
+  
+  .headline {
+    right: 50%;
+    bottom: 20%;
+    transform: translate(50%, 50%);
+    max-width: 250px;
+  }
+  
+  .headline h1 {
+    font-size: 1.5rem;
+  }
+}

@@ -1,0 +1,112 @@
+/* Transparent Black Theme Override - FORCE TRANSPARENT BLACK */
+.floating-assistant {
+    width: 90% !important;
+    height: 90vh !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Override ALL Tailwind classes */
+.bg-slate-900,
+.bg-slate-800,
+.bg-black\/90,
+.bg-black\/80,
+.bg-black\/70,
+.bg-black\/60,
+.bg-black\/50,
+.bg-black\/40,
+.bg-black\/30,
+.bg-black\/20,
+.bg-black\/10,
+.bg-gray-800,
+.bg-gray-700,
+.bg-gray-900 {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+.bg-white\/20,
+.bg-white\/15,
+.bg-white\/10,
+.bg-white\/5 {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Force transparent black on ALL elements */
+div[class*="bg-"],
+header[class*="bg-"],
+section[class*="bg-"] {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Override any gradient backgrounds */
+[style*="linear-gradient"],
+[style*="gradient"] {
+    background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Force text colors */
+.text-white,
+.text-gray-100,
+.text-gray-200,
+.text-gray-300 {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Override button backgrounds */
+button[class*="bg-"] {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Override any purple/blue colors */
+.bg-blue-500,
+.bg-purple-500,
+.bg-indigo-500,
+.bg-blue-600,
+.bg-purple-600,
+.bg-indigo-600 {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.bg-blue-500\/20,
+.bg-purple-500\/20,
+.bg-indigo-500\/20,
+.bg-blue-600\/20,
+.bg-purple-600\/20,
+.bg-indigo-600\/20 {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Override text colors for buttons */
+.text-blue-300,
+.text-purple-300,
+.text-indigo-300,
+.text-blue-400,
+.text-purple-400,
+.text-indigo-400 {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Override borders */
+.border-blue-500\/40,
+.border-purple-500\/40,
+.border-indigo-500\/40 {
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Force transparent black on main container */
+body,
+html {
+    background: transparent !important;
+}
+
+/* Override any element with purple/blue in style attribute */
+[style*="#667eea"],
+[style*="#764ba2"],
+[style*="#6366f1"],
+[style*="#8b5cf6"] {
+    background: rgba(0, 0, 0, 0.3) !important;
+}
