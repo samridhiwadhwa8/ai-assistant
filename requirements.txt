@@ -8,4 +8,8 @@ langchain-ollama>=0.1.0
 fastapi[all]>=0.68.0
 speechrecognition>=3.10.0
 pydub>=0.25.1
+pytesseract>=0.3.10
+pyautogui>=0.9.54
+Pillow>=9.0.0
+ollama>=0.1.0
 base64

@@ -59,15 +59,21 @@ def save_conversation_store():
 # Load persisted conversations at startup
 load_conversation_store()
 
-# Initialize Ollama client
-ollama = AsyncClient(host='http://localhost:11434')
+# Initialize Ollama client (non-blocking)
+try:
+    ollama = AsyncClient(host='http://localhost:11434')
+    logger.info("Ollama client initialized successfully")
+except Exception as e:
+    logger.error(f"Could not initialize Ollama client: {e}")
+    ollama = None
 
 def is_tesseract_available() -> bool:
-    """Check if Tesseract is installed and accessible."""
+    """Simple Tesseract availability check."""
     try:
+        # Quick check without timeout
         pytesseract.get_tesseract_version()
         return True
-    except pytesseract.TesseractNotFoundError:
+    except Exception:
         return False
 
 # Set Tesseract and ffmpeg paths for Windows
@@ -203,11 +209,19 @@ async def capture_screen(exclude_area: Optional[Dict[str, int]] = None, request:
                 fill='black'
             )
         
-        # Convert to grayscale for better OCR
+        # Fast OCR processing
+        # Convert to grayscale only
         screenshot = screenshot.convert('L')
         
-        # Use pytesseract to extract text
-        text = pytesseract.image_to_string(screenshot)
+        # Use single fast OCR config
+        text = pytesseract.image_to_string(screenshot, config='--oem 3 --psm 6 -l eng')
+        
+        # Basic cleanup only
+        if text:
+            import re
+            text = re.sub(r'\s+', ' ', text.strip())
+        else:
+            text = ""
         
         # Add to conversation history
         if session_id not in conversation_store:
@@ -682,84 +696,368 @@ async def analyze_screen(request: Request, question: str = "What's on my screen?
         session_id = get_session_id(request)
         logger.info(f"Analyzing screen with question: {question}")
         
-        # Fast screen capture and analysis
-        try:
-            # Quick screenshot
-            screenshot = pyautogui.screenshot()
-            
-            # Better OCR with more selective settings
+        # Get screen dimensions
+        screen_width, screen_height = pyautogui.size()
+        
+        # Calculate main content area (exclude browser tabs but include right side with recommendations)
+        # Exclude top 120px (browser tabs/address bar)
+        # Include full width to capture video recommendations on right
+        # Exclude bottom 100px (taskbar/browser bottom)
+        
+        # Take screenshot of main content area including right sidebar
+        content_region = (
+            0,                          # left
+            120,                        # top (skip browser chrome)
+            screen_width,               # right (full width to include recommendations)
+            screen_height - 100         # bottom (skip taskbar)
+        )
+        
+        logger.info(f"Capturing content region: {content_region}")
+        screenshot = pyautogui.screenshot(region=content_region)
+        
+        # Check if Tesseract is available
+        if not is_tesseract_available():
+            raise HTTPException(
+                status_code=500,
+                detail="Tesseract OCR is not installed or not in PATH"
+            )
+        
+        # Save debug screenshot to see what we're capturing
+        screenshot.save("debug_content_area.png")
+        logger.info("Saved debug screenshot as debug_content_area.png")
+        
+        # Convert to grayscale for better OCR
+        screenshot = screenshot.convert('L')
+        
+        # Try multiple OCR configurations
+        all_text = []
+        configs = [
+            '--oem 3 --psm 6 -l eng',  # Uniform block of text
+            '--oem 3 --psm 3 -l eng',  # Fully automatic page segmentation
+        ]
+        
+        for config in configs:
             try:
-                # Use more conservative OCR settings for better text extraction
-                custom_config = r'--oem 3 --psm 3 -l eng --psm 6'
-                # Resize for better OCR but not too large
-                if screenshot.width > 1920:
-                    screenshot = screenshot.resize((1920, int(screenshot.height * 1920 / screenshot.width)))
+                text = pytesseract.image_to_string(screenshot, config=config)
+                if text and text.strip():
+                    all_text.append(text.strip())
+                    logger.info(f"OCR with {config}: {len(text)} chars extracted")
+            except Exception as e:
+                logger.error(f"OCR failed with {config}: {e}")
+                continue
+        
+        # Get the longest OCR result
+        if all_text:
+            screen_text = max(all_text, key=len)
+            
+            # Clean up noise and make text more readable
+            import re
+            
+            # Remove browser UI patterns
+            noise_patterns = [
+                r'^\s*[\|x\+\-=€@%]+\s*$',  # Lines with only symbols
+                r'^\s*[A-Z]{1,2}\s*$',       # Single letters (tabs shortcuts)
+                r'www\.\w+\.\w+',            # URLs in address bar
+                r'youtube\.com/watch\?v=\w+', # YouTube URLs
+                r'Inbox\s*\(\d+\)',          # Email counts
+                r'Extensions?',               # Browser extensions
+                r'Related|For you',          # YouTube sidebar
+                r'Learn more|Sponsored',     # Ads
+                r'ScreenAl Assistant',       # Our own interface
+                r'Hello! I\'m your',         # Our chat messages
+                r'^[vB]$',                   # Random letters
+                r'Try clicking.*Voice.*talk to me',  # Our UI text
+                r'Upload Screen.*Analyze',   # Our UI text
+            ]
+            
+            lines = screen_text.split('\n')
+            clean_lines = []
+            
+            for line in lines:
+                line = line.strip()
                 
-                screen_text = pytesseract.image_to_string(screenshot, config=custom_config)
+                # Skip if line matches noise patterns
+                is_noise = False
+                for pattern in noise_patterns:
+                    if re.search(pattern, line, re.IGNORECASE):
+                        is_noise = True
+                        break
                 
-                # Clean up the text - remove garbage characters
+                # Keep lines with substantial content (3+ words or 20+ chars)
+                if not is_noise and (len(line.split()) >= 3 or len(line) >= 20):
+                    # Clean up fragmented text
+                    # Fix common OCR issues
+                    line = re.sub(r'\s*[-–_]\s*', ' - ', line)  # Normalize dashes
+                    line = re.sub(r'\s*\|\s*', ' ', line)      # Remove vertical bars
+                    line = re.sub(r'\s*\.\s*', '. ', line)    # Fix periods
+                    line = re.sub(r'\s+', ' ', line)          # Normalize spaces
+                    line = line.strip()
+                    
+                    # Fix capitalization for song titles
+                    if len(line.split()) >= 3:
+                        words = line.split()
+                        # Capitalize first letter of each word for titles
+                        fixed_words = []
+                        for word in words:
+                            if len(word) > 2 and word.isupper():
+                                fixed_words.append(word.title())
+                            else:
+                                fixed_words.append(word)
+                        line = ' '.join(fixed_words)
+                    
+                    clean_lines.append(line)
+            
+            screen_text = '\n'.join(clean_lines)
+            
+            # Further cleanup
+            screen_text = re.sub(r'\n{3,}', '\n\n', screen_text)
+            screen_text = re.sub(r' {2,}', ' ', screen_text)
+            screen_text = screen_text.strip()
+            
+            logger.info(f"Cleaned OCR text length: {len(screen_text)} characters")
+            logger.info(f"Cleaned OCR preview: {screen_text[:800]}")
+        else:
+            screen_text = ""
+            logger.warning("No text extracted from screen")
+        
+        # Build prompt for LLM - detailed but optimized
+        if screen_text and len(screen_text) > 50:
+            # Check if user is asking for song recommendations
+            if "song" in question.lower() and ("next" in question.lower() or "listen" in question.lower()):
+                logger.info(f"Song recommendation detected! Question: {question}")
+                # Extract song titles for intelligent fallback - faster processing
                 import re
-                # Keep only readable text, remove weird characters
-                screen_text = re.sub(r'[^\w\s\.\,\?\!\:\;\-\(\)\[\]\{\}\"\'\/\\@#$%^&*+=<>', ' ', screen_text)
-                # Remove multiple spaces and newlines
-                screen_text = re.sub(r'\s+', ' ', screen_text).strip()
+                song_pattern = r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*[-–]\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+                songs_found = re.findall(song_pattern, screen_text[:500])  # Limit to first 500 chars for speed
+                logger.info(f"Songs found by regex: {songs_found}")
                 
-                # Only keep if it has meaningful content
-                if len(screen_text) < 10 or not any(c.isalpha() for c in screen_text):
-                    screen_text = ""
-                
-                logger.info(f"Clean OCR text: '{screen_text[:200]}...'")
-                
-            except Exception as ocr_error:
-                logger.error(f"OCR error: {ocr_error}")
-                screen_text = ""
-            
-            # Clean up the text
-            screen_text = screen_text.strip()[:500]  # Increased limit to 500 chars to capture more songs
-            
-            if screen_text and len(screen_text) > 10:
-                # Create an extremely specific prompt to force analysis of actual screen content
-                prompt = f"SCREEN TEXT: '{screen_text}'\n\nQUESTION: {question}\n\nCRITICAL INSTRUCTION: You MUST analyze the SCREEN TEXT above and answer based ONLY on the actual content you can see. If you see song titles like 'HIGHEST IN THE ROOM', 'HiiiPower', 'HUMBLE.', 'Hold On, We're Going Home', etc., you MUST recommend from those specific songs. Do NOT give generic suggestions. Answer ONLY about what is visible in the screen text."
+                if songs_found:
+                    song_list = [f"{artist} - {title}" for artist, title in songs_found[:5]]  # Back to 5 songs
+                    fallback_recommendation = f"Based on the songs I can see on your screen, I recommend:\n\n" + "\n".join([f"• {song}" for song in song_list]) + "\n\nThese are the top recommendations from your YouTube sidebar!"
+                    logger.info(f"Generated fallback: {fallback_recommendation}")
+                else:
+                    fallback_recommendation = f"I can see several music videos on your screen. From what I can read: {screen_text[:300]}..."
             else:
-                prompt = f"No readable text found on screen. Question: {question}\n\nThe screen appears to contain images, icons, or non-text elements. Please describe what you're trying to analyze."
+                fallback_recommendation = f"I can see this content on your screen: {screen_text[:600]}..."
             
-            # Add to conversation history
-            if session_id not in conversation_store:
-                conversation_store[session_id] = []
-            
-            conversation_store[session_id].append({
-                "role": "user",
-                "content": prompt
-            })
-            
-            # Keep only last 2 messages for speed
-            conversation_store[session_id] = conversation_store[session_id][-2:]
-            
-            # Fast LLaMA response
+            # Detailed prompt but with reasonable length
+            prompt = f"""You are analyzing the MAIN CONTENT of a user's screen (browser tabs and chat interface have been excluded).
+
+MAIN CONTENT VISIBLE:
+{screen_text[:500]}  # Reasonable limit for speed
+
+USER QUESTION: {question}
+
+Based on the content above, tell me:
+1. What website/video/article they're viewing
+2. What the main topic or subject is
+3. Specific titles, names, or information visible
+4. What activity they're doing (watching video, reading article, browsing feed, etc.)
+
+Focus on the actual content they're consuming, not browser UI elements. Be specific and detailed."""
+        else:
+            prompt = f"The main content area appears to be mostly visual (images/video) with minimal text, or the content could not be extracted clearly. Question: {question}"
+            fallback_recommendation = "I can see music video content but the text extraction is limited. Try checking the video titles visible in your YouTube recommendations."
+        
+        # Add to conversation history
+        if session_id not in conversation_store:
+            conversation_store[session_id] = []
+        
+        conversation_store[session_id].append({
+            "role": "user",
+            "content": prompt
+        })
+        
+        conversation_store[session_id] = conversation_store[session_id][-4:]
+        
+        # Get AI response
+        if not ollama:
+            return {
+                "analysis": f"AI model not available. Content text: {screen_text[:500]}",
+                "raw_text": screen_text
+            }
+        
+        try:
+            # Get response from LLM with streaming
             response = await ollama.chat(
                 model='llama3',
                 messages=conversation_store[session_id].copy(),
                 stream=True
             )
             
-            # Stream the response
             async def generate():
                 assistant_message = ""
-                async for chunk in response:
-                    if chunk and hasattr(chunk, 'message') and hasattr(chunk.message, 'content'):
-                        content = chunk.message.content
-                        if content:
-                            escaped_content = content.replace('"', '\\"').replace('\n', '\\n')
-                            assistant_message += content
-                            yield f"data: {{\"chunk\": \"{escaped_content}\"}}\n\n"
-                            await asyncio.sleep(0.001)  # Fast streaming
+                try:
+                    async for chunk in response:
+                        if chunk and hasattr(chunk, 'message') and hasattr(chunk.message, 'content'):
+                            content = chunk.message.content
+                            if content:
+                                escaped_content = content.replace('"', '\\"').replace('\n', '\\n')
+                                assistant_message += content
+                                yield f"data: {{\"chunk\": \"{escaped_content}\"}}\n\n"
+                                await asyncio.sleep(0.001)
+                    
+                    if assistant_message:
+                        conversation_store[session_id].append({
+                            "role": "assistant",
+                            "content": assistant_message
+                        })
+                    else:
+                        # Fallback if no content generated
+                        fallback_msg = f"I can see this content on your screen: {screen_text[:400]}..."
+                        escaped_msg = fallback_msg.replace('"', '\\"').replace('\n', '\\n')
+                        yield f"data: {{\"chunk\": \"{escaped_msg}\"}}\n\n"
+                        
+                except Exception as stream_error:
+                    logger.error(f"Streaming error: {stream_error}")
+                    fallback_msg = f"Error generating response. Here's what I can see: {screen_text[:400]}..."
+                    escaped_msg = fallback_msg.replace('"', '\\"').replace('\n', '\\n')
+                    yield f"data: {{\"chunk\": \"{escaped_msg}\"}}\n\n"
+            
+            return StreamingResponse(
+                generate(),
+                media_type="text/event-stream",
+                headers={"X-Session-ID": session_id}
+            )
                 
-                # Save to conversation
-                if assistant_message:
-                    conversation_store[session_id].append({
-                        "role": "assistant", 
-                        "content": assistant_message
-                    })
+        except Exception as ai_error:
+            logger.error(f"AI processing error: {ai_error}")
+            if screen_text:
+                return {
+                    "analysis": fallback_recommendation,
+                    "raw_text": screen_text
+                }
+            else:
+                return {
+                    "analysis": "The content appears to be primarily visual (video/images) with little readable text.",
+                    "raw_text": ""
+                }
+    
+    except Exception as e:
+        logger.error(f"Error in analyze_screen: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to analyze screen: {str(e)}"
+        )
+
+# Updated handle_screen_intent with same improvements
+async def handle_screen_intent(text: str, session_id: str):
+    """Handle screen analysis intent from voice or text"""
+    logger.info(f"Handling SCREEN intent: {text}")
+    
+    question = text.lower()
+    screen_words = ["what's on my screen", "what is on my screen", "screen", "read screen", "analyze screen", "what am i looking at", "what am i watching", "what's this"]
+    for word in screen_words:
+        question = question.replace(word, "").strip()
+    
+    if not question:
+        question = "What's on my screen? Describe the main content."
+    
+    try:
+        # Get screen dimensions
+        screen_width, screen_height = pyautogui.size()
+        
+        # Capture main content area (include full width for recommendations)
+        content_region = (
+            0,
+            120,
+            screen_width,               # full width to include right sidebar
+            screen_height - 100
+        )
+        
+        screenshot = pyautogui.screenshot(region=content_region)
+        screenshot = screenshot.convert('L')
+        
+        # OCR
+        custom_config = r'--oem 3 --psm 3 -l eng'
+        screen_text = pytesseract.image_to_string(screenshot, config=custom_config)
+        
+        # Clean up noise
+        import re
+        noise_patterns = [
+            r'^\s*[\|x\+\-=€@%]+\s*$',
+            r'www\.\w+\.\w+',
+            r'Inbox\s*\(\d+\)',
+            r'Extensions?',
+            r'Related|For you',
+            r'ScreenAl Assistant',
+        ]
+        
+        lines = screen_text.split('\n')
+        clean_lines = [
+            line.strip() for line in lines 
+            if len(line.strip()) > 30 and not any(re.search(p, line, re.IGNORECASE) for p in noise_patterns)
+        ]
+        
+        screen_text = '\n'.join(clean_lines)
+        screen_text = re.sub(r'\n{3,}', '\n\n', screen_text).strip()
+        
+        logger.info(f"OCR extracted {len(screen_text)} characters from content area")
+        
+        if not screen_text or len(screen_text) < 30:
+            screen_text = "Mostly visual content (video/images) with minimal text visible"
+        
+        prompt = f"""MAIN SCREEN CONTENT:
+{screen_text}
+
+QUESTION: {question}
+
+Describe what the user is viewing/watching based on the content above. Be specific about titles, topics, and activities."""
+        
+        if session_id not in conversation_store:
+            conversation_store[session_id] = []
+        
+        conversation_store[session_id].append({"role": "user", "content": prompt})
+        conversation_store[session_id] = conversation_store[session_id][-4:]
+        
+        try:
+            if not ollama:
+                # Fallback if Ollama not available
+                async def fallback_stream():
+                    fallback_msg = f"AI model not available. Based on the content I can see: {screen_text[:300]}..."
+                    escaped_msg = fallback_msg.replace('"', '\\"').replace('\n', '\\n')
+                    yield f"data: {{\"chunk\": \"{escaped_msg}\"}}\n\n"
+                
+                return StreamingResponse(
+                    fallback_stream(),
+                    media_type="text/event-stream",
+                    headers={"X-Session-ID": session_id}
+                )
+            
+            response = await ollama.chat(
+                model='llama3',
+                messages=conversation_store[session_id].copy(),
+                stream=True
+            )
+            
+            async def generate():
+                assistant_message = ""
+                try:
+                    async for chunk in response:
+                        if chunk and hasattr(chunk, 'message') and hasattr(chunk.message, 'content'):
+                            content = chunk.message.content
+                            if content:
+                                escaped_content = content.replace('"', '\\"').replace('\n', '\\n')
+                                assistant_message += content
+                                yield f"data: {{\"chunk\": \"{escaped_content}\"}}\n\n"
+                                await asyncio.sleep(0.001)
+                    
+                    if assistant_message:
+                        conversation_store[session_id].append({
+                            "role": "assistant",
+                            "content": assistant_message
+                        })
+                    else:
+                        # Fallback if no content generated
+                        fallback_msg = f"I can see this content on your screen: {screen_text[:400]}..."
+                        escaped_msg = fallback_msg.replace('"', '\\"').replace('\n', '\\n')
+                        yield f"data: {{\"chunk\": \"{escaped_msg}\"}}\n\n"
+                        
+                except Exception as stream_error:
+                    logger.error(f"Streaming error: {stream_error}")
+                    fallback_msg = f"Error generating response. Here's what I can see: {screen_text[:400]}..."
+                    escaped_msg = fallback_msg.replace('"', '\\"').replace('\n', '\\n')
+                    yield f"data: {{\"chunk\": \"{escaped_msg}\"}}\n\n"
             
             return StreamingResponse(
                 generate(),
@@ -767,25 +1065,175 @@ async def analyze_screen(request: Request, question: str = "What's on my screen?
                 headers={"X-Session-ID": session_id}
             )
             
-        except Exception as e:
-            logger.error(f"Screen analysis error: {e}")
-            # Fallback to instant response if analysis fails
-            async def fallback_response():
-                response_text = f"📸 Screen captured but analysis failed. Error: {str(e)[:100]}. Try uploading a screenshot instead."
-                escaped_content = response_text.replace('"', '\\"').replace('\n', '\\n')
-                yield f"data: {{\"chunk\": \"{escaped_content}\"}}\n\n"
+        except Exception as ai_error:
+            logger.error(f"AI processing error: {ai_error}")
+            async def ai_error_stream():
+                error_msg = f"AI processing error: {str(ai_error)}. Here's what I can see: {screen_text[:400]}..."
+                escaped_msg = error_msg.replace('"', '\\"').replace('\n', '\\n')
+                yield f"data: {{\"chunk\": \"{escaped_msg}\"}}\n\n"
             
             return StreamingResponse(
-                fallback_response(),
+                ai_error_stream(),
                 media_type="text/event-stream",
                 headers={"X-Session-ID": session_id}
             )
-            
+        
     except Exception as e:
-        logger.error(f"Error in analyze_screen: {str(e)}")
+        logger.error(f"Error in handle_screen_intent: {str(e)}")
+        
+        async def error_stream():
+            error_msg = f"Error analyzing screen: {str(e)}"
+            escaped_msg = error_msg.replace('"', '\\"').replace('\n', '\\n')
+            yield f"data: {{\"chunk\": \"{escaped_msg}\"}}\n\n"
+        
+        return StreamingResponse(
+            error_stream(),
+            media_type="text/event-stream",
+            headers={"X-Session-ID": session_id}
+        )
+
+@app.get("/test-backend")
+async def test_backend():
+    """Simple test endpoint to verify backend is working"""
+    try:
+        # Test Ollama connection
+        if ollama:
+            try:
+                response = await ollama.chat(
+                    model='llama3',
+                    messages=[{"role": "user", "content": "Say hello"}]
+                )
+                return {
+                    "status": "Backend working",
+                    "ollama": "Connected",
+                    "response": response['message']['content'] if response and 'message' in response else "No response",
+                    "ollama_client": str(type(ollama))
+                }
+            except Exception as ollama_error:
+                return {
+                    "status": "Backend working",
+                    "ollama": "Connection failed",
+                    "error": str(ollama_error),
+                    "ollama_client": str(type(ollama)),
+                    "suggestion": "Check if Ollama is running on localhost:11434"
+                }
+        else:
+            return {
+                "status": "Backend working",
+                "ollama": "Not initialized",
+                "error": "Ollama client is None",
+                "suggestion": "Check Ollama installation and startup logs"
+            }
+    except Exception as e:
+        return {
+            "status": "Backend error",
+            "ollama": "Unknown",
+            "error": str(e),
+            "ollama_exists": ollama is not None,
+            "ollama_type": str(type(ollama)) if ollama else "None"
+        }
+
+@app.post("/debug-ocr")
+async def debug_ocr():
+    """
+    Fast debug endpoint
+    """
+    try:
+        screenshot = pyautogui.screenshot()
+        screenshot.save("debug_screenshot.png")
+        
+        # Fast OCR processing
+        screenshot = screenshot.convert('L')
+        text = pytesseract.image_to_string(screenshot, config='--oem 3 --psm 6 -l eng')
+        
+        # Basic cleanup
+        if text:
+            import re
+            screen_text = re.sub(r'\s+', ' ', text.strip())
+        else:
+            screen_text = ""
+        
+        return {
+            "screenshot_saved": "debug_screenshot.png",
+            "text": screen_text,
+            "length": len(screen_text),
+            "word_count": len(screen_text.split()) if screen_text else 0
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/search")
+async def search_screen(query: str, request: Request):
+    """
+    Search for specific text/content on the screen
+    """
+    try:
+        session_id = get_session_id(request)
+        logger.info(f"Searching screen for: {query}")
+        
+        # Capture screen
+        screenshot = pyautogui.screenshot()
+        
+        # Extract text using OCR
+        try:
+            custom_config = r'--oem 3 --psm 3 -l eng'
+            screen_text = pytesseract.image_to_string(screenshot, config=custom_config)
+            
+            # Clean up text
+            import re
+            screen_text = re.sub(r'[^\w\s\.\,\?\!\:\;\-\(\)\[\]\{\}\"\'\/\\@#$%^&*+=<>', ' ', screen_text)
+            screen_text = re.sub(r'\s+', ' ', screen_text).strip()
+            
+        except Exception as ocr_error:
+            logger.error(f"OCR error: {ocr_error}")
+            screen_text = ""
+        
+        # Search for the query in the extracted text
+        search_results = []
+        if screen_text and query:
+            query_lower = query.lower()
+            screen_text_lower = screen_text.lower()
+            
+            if query_lower in screen_text_lower:
+                # Find context around the match
+                words = screen_text.split()
+                for i, word in enumerate(words):
+                    if query_lower in word.lower():
+                        # Get context (5 words before and after)
+                        start = max(0, i - 5)
+                        end = min(len(words), i + 6)
+                        context = ' '.join(words[start:end])
+                        search_results.append({
+                            "found": True,
+                            "context": context,
+                            "position": i
+                        })
+        
+        # Add to conversation history
+        if session_id not in conversation_store:
+            conversation_store[session_id] = []
+        
+        result = {
+            "query": query,
+            "found": len(search_results) > 0,
+            "results": search_results,
+            "full_text": screen_text[:1000] if screen_text else "No text found",
+            "timestamp": time.time()
+        }
+        
+        conversation_store[session_id].append({
+            "role": "assistant",
+            "content": f"Search for '{query}': {'Found' if result['found'] else 'Not found'}"
+        })
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Search error: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to analyze screen: {str(e)}"
+            detail=f"Search failed: {str(e)}"
         )
 
 # CORS preflight for /chat
@@ -797,4 +1245,5 @@ if __name__ == "__main__":
     import uvicorn
     if not is_tesseract_available():
         logger.warning("Tesseract OCR is not installed or not in system PATH. Screen capture will not work.")
+    logger.info("Starting ScreenAI backend server...")
     uvicorn.run("test_server:app", host="0.0.0.0", port=8000, reload=True)

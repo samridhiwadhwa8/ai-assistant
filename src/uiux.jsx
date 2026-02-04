@@ -144,19 +144,21 @@ const LlamaChatbot = () => {
   const analyzeScreen = async (question = "What's on my screen?") => {
     try {
       setIsTyping(true);
-      
-      // Add a message to show we're processing the screen
-      const processingMessage = {
+
+      // Add a streaming message placeholder
+      const streamingMessageId = Date.now().toString();
+      setMessages(prev => [...prev, {
+        id: streamingMessageId,
         role: "assistant",
-        content: "👀 Analyzing your screen...",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, processingMessage]);
+        content: "",
+        timestamp: new Date().toISOString(),
+        isStreaming: true
+      }]);
 
       const response = await fetch(`http://localhost:8000/analyze-screen?question=${encodeURIComponent(question)}`, {
         method: 'POST',
         headers: {
-          'Accept': 'text/event-stream',
+          'Content-Type': 'application/json',
           'X-Session-ID': sessionId || undefined
         }
       });
@@ -167,82 +169,78 @@ const LlamaChatbot = () => {
         localStorage.setItem('sessionId', newSessionId);
       }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Server responded with ${response.status}`);
-      }
-
-      // Remove the processing message and add a new assistant message
-      setMessages(prev => {
-        const newMessages = prev.slice(0, -1);
-        return [
-          ...newMessages,
-          {
-            role: "assistant",
-            content: "",
-            timestamp: new Date(),
-            isStreaming: true
-          }
-        ];
-      });
-
-      // Process the stream
-      const reader = response.body.getReader();
+      // Handle streaming response
+      const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let accumulatedContent = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
-        
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          
-          try {
-            const data = JSON.parse(line.substring(6).trim());
-            if (data.chunk) {
-              // Update the last message with the new chunk
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = { ...newMessages[newMessages.length - 1] };
-                if (lastMessage.role === 'assistant') {
-                  lastMessage.content += data.chunk;
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.chunk) {
+                  accumulatedContent += data.chunk;
+                  
+                  // Update the streaming message
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === streamingMessageId 
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  ));
                 }
-                return [...newMessages.slice(0, -1), lastMessage];
-              });
+              } catch (e) {
+                // Skip invalid JSON
+              }
             }
-          } catch (e) {
-            console.error('Error parsing chunk:', e);
           }
         }
       }
 
-      // Mark streaming as complete
-      setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMessage = { ...newMessages[newMessages.length - 1] };
-        lastMessage.isStreaming = false;
-        return [...newMessages.slice(0, -1), lastMessage];
-      });
-      
-    } catch (error) {
-      console.error('Error analyzing screen:', error);
-      setMessages(prev => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `❌ Error: ${error.message}`,
-          timestamp: new Date()
-        }
-      ]);
-    } finally {
+      // Finalize the streaming message
+      setMessages(prev => prev.map(msg => 
+        msg.id === streamingMessageId 
+          ? { ...msg, isStreaming: false, content: accumulatedContent }
+          : msg
+      ));
+
       setIsTyping(false);
+
+    } catch (error) {
+      console.error('Screen analysis error:', error);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "❌ Error: " + error.message,
+        timestamp: new Date()
+      }]);
+      setIsTyping(false);
+    } finally {
+      if (abortController) {
+        abortController = null;
+        setAbortController(null);
+      }
     }
   };
+
+  useEffect(() => {
+    console.log('🚀 REACT: Exposing functions to window...');
+    window.captureScreen = captureScreen;
+    window.startRecording = startRecording;
+    window.stopRecording = stopRecording;
+    window.analyzeScreen = analyzeScreen;
+    window.reactCaptureScreen = captureScreen;
+    window.reactAnalyzeScreen = analyzeScreen;
+    console.log('🚀 REACT: Functions exposed to window');
+    
+    console.log('🚀 UIUX: Is iframe mode:', isIframe);
+  }, []);
 
   const startRecording = async () => {
     try {
@@ -296,14 +294,6 @@ const LlamaChatbot = () => {
     try {
       console.log('sendVoiceToServer called with audio data length:', audioData.length);
       setIsTyping(true);
-      
-      // Add a message to show we're processing the voice
-      const processingMessage = {
-        role: "assistant",
-        content: "🎤 Processing your voice...",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, processingMessage]);
 
       console.log('Sending request to voice-to-text endpoint...');
       const controller = new AbortController();
@@ -421,17 +411,7 @@ const LlamaChatbot = () => {
     try {
       console.log('🚀 CAPTURE: Starting screen capture...');
       setIsTyping(true);
-      
-      // Add a message to show we're processing the screen
-      const processingMessage = {
-        role: "assistant",
-        content: "📷 Select your current screen/window to analyze...",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, processingMessage]);
-      console.log('🚀 CAPTURE: Processing message added');
 
-      // Ask user which screen/tab/window to share
       console.log('🚀 CAPTURE: Requesting screen sharing...');
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 1 },
@@ -469,7 +449,7 @@ const LlamaChatbot = () => {
 
       // Use the analyze-screen endpoint with file upload for intelligent analysis
       console.log('🚀 CAPTURE: Sending to analyze-screen endpoint with file...');
-      const response = await fetch("http://localhost:8000/analyze-screen?question=What's on my screen?", {
+      const response = await fetch("http://localhost:8000/process-screenshot?question=What's in this image?", {
         method: "POST",
         body: formData,
         headers: {
@@ -484,114 +464,6 @@ const LlamaChatbot = () => {
         setSessionId(newSessionId);
         localStorage.setItem('sessionId', newSessionId);
         console.log('🚀 CAPTURE: Session ID updated');
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('🚀 CAPTURE: Server error:', errorData);
-        throw new Error(errorData.detail || `Server responded with ${response.status}`);
-      }
-
-      // Remove processing message and add streaming message
-      setMessages(prev => {
-        const newMessages = prev.slice(0, -1);
-        return [
-          ...newMessages,
-          {
-            role: "assistant",
-            content: "",
-            timestamp: new Date(),
-            isStreaming: true
-          }
-        ];
-      });
-
-      // Handle streaming response from analyze-screen
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
-        
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          
-          try {
-            const data = JSON.parse(line.substring(6).trim());
-            if (data.chunk) {
-              // Update the last message with the new chunk
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = { ...newMessages[newMessages.length - 1] };
-                if (lastMessage.role === 'assistant') {
-                  lastMessage.content += data.chunk;
-                }
-                return [...newMessages.slice(0, -1), lastMessage];
-              });
-            }
-          } catch (e) {
-            console.error('Error parsing chunk:', e);
-          }
-        }
-      }
-
-      // Mark streaming as complete
-      setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMessage = { ...newMessages[newMessages.length - 1] };
-        lastMessage.isStreaming = false;
-        return [...newMessages.slice(0, -1), lastMessage];
-      });
-      
-    } catch (err) {
-      console.error('🚀 CAPTURE: Error in captureScreen:', err);
-      setMessages(prev => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `❌ Failed to capture and analyze screen: ${err.message}`,
-          timestamp: new Date()
-        }
-      ]);
-    } finally {
-      setIsTyping(false);
-      console.log('🚀 CAPTURE: Function completed');
-    }
-  };
-
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setIsTyping(true);
-    setMessages(prev => [...prev, {
-      role: "assistant",
-      content: "📄 Processing uploaded image...",
-      timestamp: new Date()
-    }]);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("http://localhost:8000/process-screenshot?question=What's in this image?", {
-        method: "POST",
-        body: formData,
-        headers: {
-          "X-Session-ID": sessionId || ""
-        }
-      });
-
-      const newSessionId = response.headers.get('X-Session-ID');
-      if (newSessionId && newSessionId !== sessionId) {
-        setSessionId(newSessionId);
-        localStorage.setItem('sessionId', newSessionId);
       }
 
       if (!response.ok) {
@@ -633,29 +505,52 @@ const LlamaChatbot = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+const handleKeyPress = (e) => {
+if (e.key === 'Enter' && !e.shiftKey) {
+  e.preventDefault();
+  handleSend();
+}};
+
+const isIframe = window.self !== window.top;
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      setIsTyping(true);
+      
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("http://localhost:8000/process-screenshot?question=What's in this image?", {
+        method: "POST",
+        body: formData,
+        headers: {
+          'X-Session-ID': sessionId || undefined
+        }
+      });
+
+      const data = await response.json();
+      
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: data.text || "No text was found in the image.",
+        timestamp: new Date()
+      }]);
+
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `❌ Error processing file: ${error.message}`,
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsTyping(false);
     }
   };
 
-  // Expose functions to window for extension access
-  useEffect(() => {
-    console.log('🚀 REACT: Exposing functions to window...');
-    window.captureScreen = captureScreen;
-    window.startRecording = startRecording;
-    window.stopRecording = stopRecording;
-    window.analyzeScreen = analyzeScreen;
-    window.reactCaptureScreen = captureScreen;
-    window.reactAnalyzeScreen = analyzeScreen;
-    console.log('🚀 REACT: Functions exposed to window');
-  }, []);
-
-  const isIframe = window.self !== window.top;
-  console.log('🚀 UIUX: Is iframe mode:', isIframe);
-  
-  const backgroundStyle = isIframe 
+  const backgroundStyle = window.self !== window.top 
     ? { 
         background: 'rgba(0, 0, 0, 0.08)',
         backdropFilter: 'blur(6px) brightness(0.9)',
@@ -671,7 +566,8 @@ const LlamaChatbot = () => {
   const textStyle = isIframe 
     ? {}
     : {};
-  
+
+
   return (
     <div 
       className="flex flex-col h-screen" 
@@ -825,7 +721,7 @@ const LlamaChatbot = () => {
             type="file"
             accept="image/*"
             ref={fileInputRef}
-            onChange={handleFileUpload}
+            onChange={(e) => handleFileUpload(e)}
             className="hidden"
             disabled={isTyping}
           />
