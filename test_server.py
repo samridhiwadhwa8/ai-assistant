@@ -691,10 +691,10 @@ async def voice_to_text(request: Request):
         )
 
 @app.post("/analyze-screen")
-async def analyze_screen(request: Request, question: str = "What's on my screen?"):
+async def analyze_screen(request: Request, question: str = "What's on my screen?", url: str = ""):
     try:
         session_id = get_session_id(request)
-        logger.info(f"Analyzing screen with question: {question}")
+        logger.info(f"Analyzing screen with question: {question}, URL: {url}")
         
         # Get screen dimensions
         screen_width, screen_height = pyautogui.size()
@@ -820,8 +820,30 @@ async def analyze_screen(request: Request, question: str = "What's on my screen?
             screen_text = ""
             logger.warning("No text extracted from screen")
         
-        # Build prompt for LLM - detailed but optimized
+        # Build prompt for LLM - detailed but optimized with URL context
         if screen_text and len(screen_text) > 50:
+            # Detect website context from URL if available
+            website_context = ""
+            if url:
+                from urllib.parse import urlparse
+                parsed_url = urlparse(url)
+                hostname = parsed_url.hostname.lower() if parsed_url.hostname else ""
+                
+                if 'leetcode.com' in hostname or 'hackerrank.com' in hostname or 'codeforces.com' in hostname:
+                    website_context = "CODING PRACTICE PLATFORM - User is solving programming problems."
+                elif 'github.com' in hostname or 'gitlab.com' in hostname:
+                    website_context = "CODE REPOSITORY - User is reviewing code or documentation."
+                elif 'stackoverflow.com' in hostname or 'stackexchange.com' in hostname:
+                    website_context = "Q&A FORUM - User is looking for programming help."
+                elif 'youtube.com' in hostname or 'vimeo.com' in hostname:
+                    website_context = "VIDEO PLATFORM - User is watching educational content."
+                elif 'wikipedia.org' in hostname or 'docs.' in hostname:
+                    website_context = "DOCUMENTATION - User is reading technical documentation."
+                elif 'coursera.org' in hostname or 'udemy.com' in hostname:
+                    website_context = "E-LEARNING - User is taking an online course."
+                else:
+                    website_context = "GENERAL WEBSITE"
+            
             # Check if user is asking for song recommendations
             if "song" in question.lower() and ("next" in question.lower() or "listen" in question.lower()):
                 logger.info(f"Song recommendation detected! Question: {question}")
@@ -840,21 +862,46 @@ async def analyze_screen(request: Request, question: str = "What's on my screen?
             else:
                 fallback_recommendation = f"I can see this content on your screen: {screen_text[:600]}..."
             
-            # Detailed prompt but with reasonable length
-            prompt = f"""You are analyzing the MAIN CONTENT of a user's screen (browser tabs and chat interface have been excluded).
+            # Enhanced prompt with URL context
+            prompt = f"""You are analyzing the MAIN CONTENT of a user's screen with additional context.
+
+WEBSITE CONTEXT: {website_context}
+CURRENT URL: {url}
 
 MAIN CONTENT VISIBLE:
 {screen_text[:500]}  # Reasonable limit for speed
 
 USER QUESTION: {question}
 
-Based on the content above, tell me:
-1. What website/video/article they're viewing
-2. What the main topic or subject is
-3. Specific titles, names, or information visible
-4. What activity they're doing (watching video, reading article, browsing feed, etc.)
+Based on the content and website context above, provide a helpful and specific response:
 
-Focus on the actual content they're consuming, not browser UI elements. Be specific and detailed."""
+If on CODING PLATFORMS (LeetCode, HackerRank):
+- Recognize the specific programming problem
+- Provide algorithm explanations
+- Give code solutions with time/space complexity
+- Suggest optimization approaches
+
+If on CODE REPOSITORIES (GitHub, GitLab):
+- Explain the code structure
+- Help with code review
+- Suggest improvements
+
+If on VIDEO PLATFORMS (YouTube):
+- Summarize video content
+- Answer questions about the topic
+- Provide additional resources
+
+If on DOCUMENTATION:
+- Explain technical concepts
+- Provide examples
+- Suggest related topics
+
+For general content:
+- Identify what they're viewing
+- Explain the main topic
+- Answer their specific question
+
+Be specific, detailed, and actionable!"""
         else:
             prompt = f"The main content area appears to be mostly visual (images/video) with minimal text, or the content could not be extracted clearly. Question: {question}"
             fallback_recommendation = "I can see music video content but the text extraction is limited. Try checking the video titles visible in your YouTube recommendations."

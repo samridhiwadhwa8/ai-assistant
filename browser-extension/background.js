@@ -245,7 +245,6 @@ async function injectContentScript(tab) {
           </div>
           <div style="display:flex;gap:10px;">
             <button id="screenai-chat-btn" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;transition:all 0.2s;">💬 Chat</button>
-            <button id="screenai-minimize-btn" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;transition:all 0.2s;">−</button>
             <button id="screenai-close-btn" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;transition:all 0.2s;">×</button>
           </div>
         `;
@@ -254,66 +253,10 @@ async function injectContentScript(tab) {
         
         // Add event listeners
         const chatBtn = document.getElementById('screenai-chat-btn');
-        const minimizeBtn = document.getElementById('screenai-minimize-btn');
         const closeBtn = document.getElementById('screenai-close-btn');
         
         if (chatBtn) {
           chatBtn.addEventListener('click', () => createChatWindow());
-        }
-        
-        if (minimizeBtn) {
-          minimizeBtn.addEventListener('click', () => {
-            const topBar = document.getElementById('screenai-top-bar');
-            if (topBar) {
-              // Store original state
-              if (!topBar.dataset.originalStyle) {
-                topBar.dataset.originalStyle = topBar.style.cssText;
-                topBar.dataset.originalContent = topBar.innerHTML;
-              }
-              
-              // Minimize to thin line - completely override all styles
-              topBar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:2px !important;min-height:2px !important;max-height:2px !important;width:100% !important;padding:0 !important;margin:0 !important;border:none !important;border-radius:0 !important;background:rgba(255,255,255,0.4) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;box-shadow:none !important;overflow:hidden !important;cursor:pointer !important;z-index:999999999 !important;';
-              topBar.innerHTML = '';
-              
-              // Add click to restore
-              topBar.addEventListener('click', function restore() {
-                topBar.style.cssText = topBar.dataset.originalStyle;
-                topBar.innerHTML = topBar.dataset.originalContent;
-                
-                // Re-attach event listeners after restore
-                const restoredChatBtn = document.getElementById('screenai-chat-btn');
-                const restoredMinimizeBtn = document.getElementById('screenai-minimize-btn');
-                const restoredCloseBtn = document.getElementById('screenai-close-btn');
-                
-                if (restoredChatBtn) {
-                  restoredChatBtn.addEventListener('click', () => createChatWindow());
-                }
-                
-                if (restoredMinimizeBtn) {
-                  restoredMinimizeBtn.addEventListener('click', () => {
-                    const topBar = document.getElementById('screenai-top-bar');
-                    if (topBar) {
-                      topBar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:2px !important;min-height:2px !important;max-height:2px !important;width:100% !important;padding:0 !important;margin:0 !important;border:none !important;border-radius:0 !important;background:rgba(255,255,255,0.4) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;box-shadow:none !important;overflow:hidden !important;cursor:pointer !important;z-index:999999999 !important;';
-                      topBar.innerHTML = '';
-                      
-                      topBar.addEventListener('click', restore);
-                    }
-                  });
-                }
-                
-                if (restoredCloseBtn) {
-                  restoredCloseBtn.addEventListener('click', () => {
-                    const topBar = document.getElementById('screenai-top-bar');
-                    const chatWindow = document.querySelector('[id^="screenai-direct-chat"]');
-                    if (topBar) topBar.remove();
-                    if (chatWindow) chatWindow.remove();
-                  });
-                }
-                
-                topBar.removeEventListener('click', restore);
-              });
-            }
-          });
         }
         
         if (closeBtn) {
@@ -336,11 +279,50 @@ async function injectContentScript(tab) {
           
           chatWindow.innerHTML = `
             <div style="height:100%;background:transparent;">
-              <iframe src="http://localhost:3001/app" frameborder="0" width="100%" height="100%" style="border:none;background:transparent;width:100%;height:100%;display:block;allowtransparency:true;opacity:1;" allowtransparency="true" allow="microphone; camera; display-capture" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-top-navigation-by-user-activation allow-downloads allow-microphone allow-camera"></iframe>
+              <iframe id="screenai-iframe" src="http://localhost:3001/app" frameborder="0" width="100%" height="100%" style="border:none;background:transparent;width:100%;height:100%;display:block;allowtransparency:true;opacity:1;" allowtransparency="true" allow="microphone; camera; display-capture" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-top-navigation-by-user-activation allow-downloads allow-microphone allow-camera"></iframe>
             </div>
           `;
           
           document.body.appendChild(chatWindow);
+          
+          // Set up postMessage communication with iframe
+          const iframe = document.getElementById('screenai-iframe');
+          if (iframe) {
+            iframe.onload = function() {
+              console.log('📡 Iframe loaded, setting up communication');
+              
+              // Listen for URL requests from iframe
+              const messageHandler = function(event) {
+                console.log('📨 Received message from iframe:', event.data);
+                
+                if (event.data && event.data.type === 'SCREENAI_REQUEST_URL') {
+                  console.log('📨 Received URL request from iframe');
+                  
+                  // Send current page URL to iframe
+                  const currentUrl = window.location.href;
+                  event.source.postMessage({
+                    type: 'SCREENAI_PARENT_URL',
+                    url: currentUrl
+                  }, event.origin);
+                  
+                  console.log('📤 Sent parent URL to iframe:', currentUrl);
+                }
+              };
+              
+              window.addEventListener('message', messageHandler);
+              
+              // Also send URL immediately after iframe loads
+              setTimeout(() => {
+                const currentUrl = window.location.href;
+                iframe.contentWindow.postMessage({
+                  type: 'SCREENAI_PARENT_URL',
+                  url: currentUrl
+                }, '*');
+                console.log('📤 Proactively sent parent URL to iframe:', currentUrl);
+              }, 500);
+            };
+          }
+          
           console.log('Chat window created!');
         }
         

@@ -32,6 +32,19 @@ const LlamaChatbot = () => {
   const [abortController, setAbortController] = useState(null);
   const [currentContext, setCurrentContext] = useState(null);
   
+  // Helper function to get contextual welcome with specific URL
+  const getContextualWelcomeWithUrl = (userName, url) => {
+    const context = detectPageContextWithUrl(url);
+    if (context && userName) {
+      return `Welcome back ${userName}! ${context.message}`;
+    } else if (context) {
+      return context.message;
+    } else if (userName) {
+      return `Welcome back ${userName}! I'm your LLaMA assistant. I remember our previous conversations. How can I help you today?`;
+    }
+    return "Hello! I'm your LLaMA assistant. I can help analyze your screen content and respond to your voice commands.";
+  };
+
   // Listen for messages from parent window
   useEffect(() => {
     const handleMessage = (event) => {
@@ -64,38 +77,20 @@ const LlamaChatbot = () => {
 
     window.addEventListener('message', handleMessage);
     
-    // Request parent URL with retry mechanism
-    const requestParentUrl = () => {
-      try {
-        if (window.parent) {
-          window.parent.postMessage({ type: 'SCREENAI_REQUEST_URL' }, '*');
-          console.log('📤 Sent URL request to parent');
-        }
-      } catch (e) {
-        console.log('📤 Cannot send message to parent');
+    // Request parent URL
+    try {
+      if (window.parent) {
+        window.parent.postMessage({ type: 'SCREENAI_REQUEST_URL' }, '*');
+        console.log('📤 Sent URL request to parent');
       }
-    };
-    
-    // Initial request
-    requestParentUrl();
-    
-    // Retry every 2 seconds for up to 5 times
-    let retryCount = 0;
-    const retryInterval = setInterval(() => {
-      if (!parentUrl && retryCount < 5) {
-        requestParentUrl();
-        retryCount++;
-        console.log(`📤 Retry ${retryCount}/5: Sent URL request to parent`);
-      } else {
-        clearInterval(retryInterval);
-      }
-    }, 2000);
+    } catch (e) {
+      console.log('📤 Cannot send message to parent');
+    }
     
     return () => {
       window.removeEventListener('message', handleMessage);
-      clearInterval(retryInterval);
     };
-  }, [userName, messages.length, parentUrl]);
+  }, [userName, messages.length, getContextualWelcomeWithUrl]);
   
   // Helper function to detect context with specific URL
   const detectPageContextWithUrl = (url) => {
@@ -104,134 +99,79 @@ const LlamaChatbot = () => {
       const hostname = urlObj.hostname.toLowerCase();
       console.log('🔍 Context Detection with URL - Hostname:', hostname);
       
-      // Coding Practice Sites
-      if (hostname.includes('leetcode.com') || hostname.includes('hackerrank.com') || 
-          hostname.includes('codeforces.com') || hostname.includes('codewars.com') || 
-          hostname.includes('geeksforgeeks.org') || hostname.includes('gfg.org')) {
+      // Detect different contexts
+      if (hostname.includes('github.com') || hostname.includes('gitlab.com')) {
+        console.log('🎯 Detected: Coding platform');
+        return {
+          type: 'coding',
+          message: "I see you're on a coding platform. Need help with code review, debugging, or understanding this repository?",
+          suggestions: ['Explain this code', 'Help debug', 'Review this PR', 'Suggest improvements']
+        };
+      } else if (hostname.includes('leetcode.com') || hostname.includes('hackerrank.com') || hostname.includes('codeforces.com') || hostname.includes('codewars.com')) {
         console.log('🎯 Detected: Coding practice site');
         return {
           type: 'coding',
-          message: "Practicing coding problems? I can help explain algorithms, debug your solutions, or suggest approaches!"
+          message: "Practicing coding problems? I can help explain algorithms, debug your solutions, or suggest approaches!",
+          suggestions: ['Explain this problem', 'Help optimize solution', 'Debug my code', 'Suggest algorithm']
         };
-      }
-      
-      // Code Repository Platforms
-      if (hostname.includes('github.com') || hostname.includes('gitlab.com') || 
-          hostname.includes('bitbucket.org') || hostname.includes('sourceforge.net')) {
-        console.log('🎯 Detected: Code repository platform');
-        return {
-          type: 'coding',
-          message: "I see you're on a code repository platform. Need help with code review, debugging, or understanding this project?"
-        };
-      }
-      
-      // Q&A and Discussion Sites
-      if (hostname.includes('stackoverflow.com') || hostname.includes('stackexchange.com') || 
-          hostname.includes('reddit.com') || hostname.includes('quora.com') || 
-          hostname.includes('discord.com') || hostname.includes('slack.com')) {
-        console.log('🎯 Detected: Q&A or discussion site');
+      } else if (hostname.includes('stackoverflow.com') || hostname.includes('stackexchange.com')) {
+        console.log('🎯 Detected: Q&A site');
         return {
           type: 'qa',
-          message: "You're on a discussion platform. Looking for answers or need help understanding solutions?"
+          message: "You're on a Q&A site. Looking for answers or need help understanding a solution?",
+          suggestions: ['Explain this answer', 'Find similar solutions', 'Help with this problem']
         };
-      }
-      
-      // Video and Entertainment Sites
-      if (hostname.includes('youtube.com') || hostname.includes('vimeo.com') || 
-          hostname.includes('netflix.com') || hostname.includes('twitch.tv') || 
-          hostname.includes('hulu.com') || hostname.includes('disney.com') || 
-          hostname.includes('primevideo.com')) {
+      } else if (hostname.includes('youtube.com') || hostname.includes('vimeo.com') || hostname.includes('netflix.com') || hostname.includes('primevideo.com') || hostname.includes('primevideo.com')) {
         console.log('🎯 Detected: Video site');
         return {
           type: 'video',
-          message: "Watching videos? I can help summarize content or answer questions about what you're watching."
+          message: "Watching videos? I can help summarize content or answer questions about what you're watching.",
+          suggestions: ['Summarize this video', 'Explain this topic', 'Find related content']
         };
-      }
-      
-      // Documentation and Learning Resources
-      if (hostname.includes('wikipedia.org') || hostname.includes('docs.') || 
-          url.includes('docs.') || hostname.includes('mdn.mozilla.org') || 
-          hostname.includes('devdocs.io') || hostname.includes('tutorialspoint.com')) {
-        console.log('🎯 Detected: Documentation site');
+      } else if (hostname.includes('wikipedia.org') || hostname.includes('docs.') || url.includes('docs.') || hostname.includes('w3schools.com') || hostname.includes('w3schools.org')) {
+        console.log('🎯 Detected: Documentation');
         return {
           type: 'documentation',
-          message: "Reading documentation. Need help understanding these concepts or finding specific information?"
+          message: "Reading documentation. Need help understanding these concepts or finding specific information?",
+          suggestions: ['Explain this concept', 'Find examples', 'Simplify this explanation']
         };
-      }
-      
-      // E-Learning Platforms
-      if (hostname.includes('coursera.org') || hostname.includes('udemy.com') || 
-          hostname.includes('edx.org') || hostname.includes('khanacademy.org') || 
-          hostname.includes('pluralsight.com') || hostname.includes('linkedin.com') || 
-          hostname.includes('skillshare.com') || hostname.includes('udacity.com')) {
-        console.log('🎯 Detected: E-learning platform');
+      } else if (hostname.includes('geeksforgeeks.org') || hostname.includes('gfg.org') || hostname.includes('geeksforgeeks.com')) {
+        console.log('🎯 Detected: Coding practice site');
         return {
-          type: 'learning',
-          message: "Learning something new? I can help explain concepts, summarize lectures, or answer questions!"
+          type: 'coding',
+          message: "Practicing coding on GFG? I can help explain algorithms, debug your solutions, or suggest approaches!",
+          suggestions: ['Explain this problem', 'Help optimize solution', 'Debug my code', 'Suggest algorithm']
         };
-      }
-      
-      // Shopping and E-commerce Sites
-      if (hostname.includes('amazon.com') || hostname.includes('ebay.com') || 
-          hostname.includes('shop') || hostname.includes('etsy.com') || 
-          hostname.includes('aliexpress.com') || hostname.includes('walmart.com') || 
-          hostname.includes('target.com') || hostname.includes('bestbuy.com')) {
-        console.log('🎯 Detected: Shopping site');
+      } else if (hostname.includes('amazon.com') || hostname.includes('ebay.com') || hostname.includes('shop')) {
+        console.log('🎯 Detected: Shopping');
         return {
           type: 'shopping',
-          message: "Shopping around? I can help compare products or find better deals."
+          message: "Shopping around? I can help compare products or find better deals.",
+          suggestions: ['Compare products', 'Find reviews', 'Suggest alternatives']
         };
-      }
-      
-      // Social Media Sites
-      if (hostname.includes('twitter.com') || hostname.includes('x.com') || 
-          hostname.includes('facebook.com') || hostname.includes('instagram.com') || 
-          hostname.includes('linkedin.com') || hostname.includes('tiktok.com')) {
-        console.log('🎯 Detected: Social media site');
+      } else if (hostname.includes('coursera.org') || hostname.includes('udemy.com') || hostname.includes('edx.org') || hostname.includes('khanacademy.org')) {
+        console.log('🎯 Detected: Learning platform');
         return {
-          type: 'social',
-          message: "On social media? I can help analyze content or assist with your social media tasks!"
+          type: 'learning',
+          message: "Learning something new? I can help explain concepts, summarize lectures, or answer questions!",
+          suggestions: ['Explain this concept', 'Summarize this lesson', 'Help with assignment', 'Find additional resources']
         };
-      }
-      
-      // News and Media Sites
-      if (hostname.includes('cnn.com') || hostname.includes('bbc.com') || 
-          hostname.includes('news.') || hostname.includes('reuters.com') || 
-          hostname.includes('nytimes.com') || hostname.includes('washingtonpost.com')) {
-        console.log('🎯 Detected: News site');
+      } else {
+        console.log('🤷 No specific context detected for:', hostname);
         return {
-          type: 'news',
-          message: "Reading news? I can help summarize articles or explain current events!"
+          type: 'general',
+          message: "I'm here to help! I can analyze your screen content and respond to your voice commands.",
+          suggestions: ['Analyze this page', 'Help with this content', 'Explain what you see']
         };
       }
-      
-      // Default for unknown sites
-      console.log('🤷 No specific context detected for:', hostname);
-      return {
-        type: 'general',
-        message: "I'm here to help! I can analyze your screen content and respond to your voice commands."
-      };
-      
     } catch (error) {
       console.error('❌ Context detection error:', error);
       return {
         type: 'general',
-        message: "I'm here to help! I can analyze your screen content and respond to your voice commands."
+        message: "I'm here to help! I can analyze your screen content and respond to your voice commands.",
+        suggestions: ['Analyze this page', 'Help with this content', 'Explain what you see']
       };
     }
-  };
-  
-  // Helper function to get contextual welcome with specific URL
-  const getContextualWelcomeWithUrl = (userName, url) => {
-    const context = detectPageContextWithUrl(url);
-    if (context && userName) {
-      return `Welcome back ${userName}! ${context.message}`;
-    } else if (context) {
-      return context.message;
-    } else if (userName) {
-      return `Welcome back ${userName}! I'm your LLaMA assistant. I remember our previous conversations. How can I help you today?`;
-    }
-    return "Hello! I'm your LLaMA assistant. I can help analyze your screen content and respond to your voice commands.";
   };
   
   const detectPageContext = () => {
@@ -428,7 +368,7 @@ const LlamaChatbot = () => {
     if (messages.length > 0) {
       saveChatHistory(messages);
     }
-  }, [messages]);
+  }, [detectPageContext, getContextualWelcome, messages]);
 
   // Save user preferences whenever they change
   useEffect(() => {
@@ -583,7 +523,7 @@ const LlamaChatbot = () => {
         isStreaming: true
       }]);
 
-      const response = await fetch(`http://localhost:8000/analyze-screen?question=${encodeURIComponent(question)}&url=${encodeURIComponent(parentUrl || '')}`, {
+      const response = await fetch(`http://localhost:8000/analyze-screen?question=${encodeURIComponent(question)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -651,24 +591,11 @@ const LlamaChatbot = () => {
       setIsTyping(false);
     } finally {
       if (abortController) {
-        abortController = null;
+        abortController.abort();
         setAbortController(null);
       }
     }
   };
-
-  useEffect(() => {
-    console.log('🚀 REACT: Exposing functions to window...');
-    window.captureScreen = captureScreen;
-    window.startRecording = startRecording;
-    window.stopRecording = stopRecording;
-    window.analyzeScreen = analyzeScreen;
-    window.reactCaptureScreen = captureScreen;
-    window.reactAnalyzeScreen = analyzeScreen;
-    console.log('🚀 REACT: Functions exposed to window');
-    
-    console.log('🚀 UIUX: Is iframe mode:', isIframe);
-  }, []);
 
   const startRecording = async () => {
     try {
@@ -768,6 +695,8 @@ const LlamaChatbot = () => {
             const chunk = decoder.decode(value, { stream: true });
             const lines = chunk.split('\n');
             
+            let assistantMessage = '';
+            
             for (const line of lines) {
               if (line.startsWith('data: ')) {
                 try {
@@ -776,9 +705,7 @@ const LlamaChatbot = () => {
                   if (!jsonStr || jsonStr.trim() === '') continue;
                   const data = JSON.parse(jsonStr);
                   if (data.chunk) {
-                    // Create a new variable to avoid loop reference issue
-                    const newContent = data.chunk;
-                    assistantMessage += newContent;
+                    assistantMessage += data.chunk;
                     setMessages(prev => {
                       const newMessages = [...prev];
                       const lastMessage = { ...newMessages[newMessages.length - 1] };
@@ -871,13 +798,25 @@ const LlamaChatbot = () => {
       track.stop(); // stop screen sharing immediately
       console.log('🚀 CAPTURE: Screen sharing stopped');
 
+      // Check if this is a "explain this problem" request
+      const isExplainProblem = input.toLowerCase().includes('explain this problem') || 
+                              input.toLowerCase().includes('explain problem') ||
+                              input.toLowerCase().includes('help understand');
+      
+      let question = "What's in this image?";
+      if (isExplainProblem) {
+        question = "Please analyze this coding problem. Explain the problem statement, input/output format, constraints, examples, and suggest optimal approaches with time and space complexity.";
+        console.log('🎯 Detected: Explain this problem request');
+      }
+
       const formData = new FormData();
       formData.append("file", blob);
-      console.log('🚀 CAPTURE: FormData created');
+      formData.append("question", question);
+      console.log('🚀 CAPTURE: FormData created with question:', question);
 
       // Use the analyze-screen endpoint with file upload for intelligent analysis
       console.log('🚀 CAPTURE: Sending to analyze-screen endpoint with file...');
-      const response = await fetch("http://localhost:8000/process-screenshot?question=What's in this image?", {
+      const response = await fetch("http://localhost:8000/process-screenshot", {
         method: "POST",
         body: formData,
         headers: {
@@ -1079,6 +1018,66 @@ const isIframe = window.self !== window.top;
           >
             🗑️
           </button>
+          {currentContext && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('💡 Suggestion button clicked, context:', currentContext);
+                if (currentContext && currentContext.suggestions.length > 0) {
+                  const randomSuggestion = currentContext.suggestions[Math.floor(Math.random() * currentContext.suggestions.length)];
+                  console.log('🎲 Selected suggestion:', randomSuggestion);
+                  setInput(randomSuggestion);
+                }
+              }}
+              style={{
+                background: 'rgba(100, 200, 255, 0.3)',
+                border: '2px solid rgba(100,200,255,0.5)',
+                borderRadius: '8px',
+                padding: '4px 8px',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+              title={`Get ${currentContext.type} suggestion`}
+            >
+              💡
+            </button>
+          )}
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              const newContext = detectPageContext();
+              setCurrentContext(newContext);
+              console.log('🔄 Manual context refresh:', newContext);
+              
+              // Always update welcome message if it's the first assistant message
+              if (messages.length > 0 && messages[0].role === 'assistant') {
+                const contextualWelcome = getContextualWelcome(userName);
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  newMessages[0] = {
+                    role: "assistant",
+                    content: contextualWelcome,
+                    timestamp: new Date()
+                  };
+                  return newMessages;
+                });
+                console.log('📝 Manually updated welcome message:', contextualWelcome);
+              }
+            }}
+            style={{
+              background: 'rgba(255, 200, 100, 0.3)',
+              border: '2px solid rgba(255,200,100,0.5)',
+              borderRadius: '8px',
+              padding: '4px 8px',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+            title="Refresh Context"
+          >
+            🔄
+          </button>
         </div>
       </header>
 
@@ -1230,8 +1229,22 @@ const isIframe = window.self !== window.top;
         </div>
         </div>
       )}
-    </div>
-  );
+  </div>
+  )}
+
+  // Expose functions to window for external access
+  useEffect(() => {
+    console.log('🚀 REACT: Exposing functions to window...');
+    window.captureScreen = captureScreen;
+    window.startRecording = startRecording;
+    window.stopRecording = stopRecording;
+    window.analyzeScreen = analyzeScreen;
+    window.reactCaptureScreen = captureScreen;
+    window.reactAnalyzeScreen = analyzeScreen;
+    console.log('🚀 REACT: Functions exposed to window');
+    
+    console.log('🚀 UIUX: Is iframe mode:', isIframe);
+  }, [analyzeScreen, captureScreen, isIframe, startRecording, stopRecording]);
 };
 
 export default LlamaChatbot;
