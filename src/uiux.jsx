@@ -408,18 +408,29 @@ const LlamaChatbot = () => {
 
   const clearAllMemory = () => {
     try {
-      localStorage.removeItem('chatHistory');
-      localStorage.removeItem('userPreferences');
-      localStorage.removeItem('userName');
+      // Stop any ongoing requests
+      if (abortController) {
+        abortController.abort();
+        setAbortController(null);
+      }
+      
+      // Stop recording if active
+      if (isRecording) {
+        stopRecording();
+      }
+      
+      // Reset conversation but keep user data
       setMessages([{
         role: "assistant",
-        content: "Memory cleared! I've forgotten everything. How can I help you today?",
+        content: "Conversation cleared! How can I help you today?",
         timestamp: new Date()
       }]);
-      setUserPreferences({});
-      setUserName('');
+      setIsTyping(false);
+      setInput('');
+      
+      console.log('🧹 Conversation cleared and ongoing requests stopped');
     } catch (error) {
-      console.error('Failed to clear memory:', error);
+      console.error('Failed to clear conversation:', error);
     }
   };
 
@@ -561,13 +572,11 @@ const LlamaChatbot = () => {
         });
         
       } else {
-        // Handle JSON response (from CHAT, VOICE, UNKNOWN intents)
-        console.log('Handling JSON response');
+        // Handle JSON response - convert to streaming for word-by-word display
+        console.log('Handling JSON response - converting to streaming');
         
-        // Add temporary typing indicator message
-        const typingMessageId = Date.now().toString();
+        // Add streaming message placeholder
         setMessages(prev => [...prev, {
-          id: typingMessageId,
           role: "assistant",
           content: "",
           timestamp: new Date(),
@@ -576,17 +585,36 @@ const LlamaChatbot = () => {
         
         const data = await response.json();
         console.log('Chat response:', data);
+        const responseText = data.response || "Sorry, I couldn't process that.";
         
-        // Replace typing message with actual response
-        setMessages(prev => prev.map(msg => 
-          msg.id === typingMessageId 
-            ? {
-                role: "assistant",
-                content: data.response || "Sorry, I couldn't process that.",
-                timestamp: new Date()
-              }
-            : msg
-        ));
+        // Simulate word-by-word streaming with reduced speed
+        const words = responseText.split(' ');
+        let currentContent = '';
+        
+        for (let i = 0; i < words.length; i++) {
+          currentContent += (i > 0 ? ' ' : '') + words[i];
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const lastMessage = { ...newMessages[newMessages.length - 1] };
+            if (lastMessage.role === 'assistant') {
+              lastMessage.content = currentContent;
+            }
+            return [...newMessages.slice(0, -1), lastMessage];
+          });
+          
+          // Reduced delay between words for slower, more natural typing
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // Mark streaming as complete
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = { ...newMessages[newMessages.length - 1] };
+          if (lastMessage.role === 'assistant') {
+            lastMessage.isStreaming = false;
+          }
+          return [...newMessages.slice(0, -1), lastMessage];
+        });
         
         // Auto-start voice recording if voice mode is activated
         if (data.voice_mode && data.intent === 'VOICE') {
@@ -913,14 +941,27 @@ const LlamaChatbot = () => {
       formData.append("file", blob);
       console.log('🚀 CAPTURE: FormData created');
 
-      // Use the analyze-screen endpoint with file upload for intelligent analysis
-      console.log('🚀 CAPTURE: Sending to analyze-screen endpoint with file...');
-      const response = await fetch("http://localhost:8000/process-screenshot?question=What's in this image?", {
-        method: "POST",
-        body: formData,
+      // Use the chat endpoint with image for AI analysis like the analyze button
+      console.log('🚀 CAPTURE: Sending to chat endpoint with image for AI analysis...');
+      
+      // Convert blob to base64
+      const base64Image = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+      
+      // Send to chat endpoint with image
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'X-Session-ID': sessionId || undefined
-        }
+        },
+        body: JSON.stringify({
+          message: "Analyze this image in detail",
+          image: base64Image
+        })
       });
 
       console.log('🚀 CAPTURE: Response received, status:', response.status);
@@ -937,20 +978,110 @@ const LlamaChatbot = () => {
         throw new Error(errorData.detail || `Server responded with ${response.status}`);
       }
 
-      // Handle JSON response (text only, no AI analysis)
-      const data = await response.json();
+      // Handle chat response with streaming
+      const contentType = response.headers.get('content-type');
       
-      setMessages(prev => {
-        const newMessages = prev.slice(0, -1);
-        return [
-          ...newMessages,
-          {
-            role: "assistant",
-            content: data.text || "No text was found in the image.",
-            timestamp: new Date(),
+      if (contentType && contentType.includes('text/event-stream')) {
+        // Handle streaming response
+        console.log('🚀 CAPTURE: Handling streaming response');
+        
+        // Add streaming message placeholder
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+          isStreaming: true
+        }]);
+
+        // Process the stream
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            
+            try {
+              const data = JSON.parse(line.substring(6).trim());
+              if (data.chunk) {
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = { ...newMessages[newMessages.length - 1] };
+                  if (lastMessage.role === 'assistant') {
+                    lastMessage.content += data.chunk;
+                  }
+                  return [...newMessages.slice(0, -1), lastMessage];
+                });
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
+            }
           }
-        ];
-      });
+        }
+
+        // Mark streaming as complete
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = { ...newMessages[newMessages.length - 1] };
+          if (lastMessage.role === 'assistant') {
+            lastMessage.isStreaming = false;
+          }
+          return [...newMessages.slice(0, -1), lastMessage];
+        });
+        
+      } else {
+        // Handle JSON response - convert to streaming for word-by-word display
+        console.log('🚀 CAPTURE: Handling JSON response - converting to streaming');
+        
+        // Add streaming message placeholder
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+          isStreaming: true
+        }]);
+        
+        const data = await response.json();
+        console.log('🚀 CAPTURE: Chat response:', data);
+        const responseText = data.response || "Sorry, I couldn't analyze that image.";
+        
+        // Simulate word-by-word streaming with reduced speed
+        const words = responseText.split(' ');
+        let currentContent = '';
+        
+        for (let i = 0; i < words.length; i++) {
+          currentContent += (i > 0 ? ' ' : '') + words[i];
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const lastMessage = { ...newMessages[newMessages.length - 1] };
+            if (lastMessage.role === 'assistant') {
+              lastMessage.content = currentContent;
+            }
+            return [...newMessages.slice(0, -1), lastMessage];
+          });
+          
+          // Reduced delay between words for slower, more natural typing
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // Mark streaming as complete
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = { ...newMessages[newMessages.length - 1] };
+          if (lastMessage.role === 'assistant') {
+            lastMessage.isStreaming = false;
+          }
+          return [...newMessages.slice(0, -1), lastMessage];
+        });
+      }
 
     } catch (error) {
       console.error('Error processing file:', error);

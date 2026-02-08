@@ -176,16 +176,95 @@ def detect_intent(text: str) -> str:
     logger.info(f"Unknown intent detected")
     return 'UNKNOWN'
 
+async def analyze_image_with_chat(message: str, image_data: str, session_id: str):
+    """
+    Analyze image using LLM with vision capabilities.
+    """
+    try:
+        if not ollama:
+            return {
+                "response": "AI model not available for image analysis.",
+                "intent": "CHAT"
+            }
+        
+        # Decode base64 image
+        image_bytes = base64.b64decode(image_data)
+        
+        # Create conversation with image
+        if session_id not in conversation_store:
+            conversation_store[session_id] = []
+        
+        # Add user message to conversation
+        conversation_store[session_id].append({
+            "role": "user", 
+            "content": message,
+            "images": [image_bytes]
+        })
+        
+        # Keep last 4 messages for context
+        conversation_store[session_id] = conversation_store[session_id][-4:]
+        
+        try:
+            # Get response from LLM with vision
+            response = await ollama.chat(
+                model='llama3',
+                messages=conversation_store[session_id].copy()
+            )
+            
+            ai_response = response['message']['content']
+            
+            # Add to conversation history (without image to save memory)
+            conversation_store[session_id].append({
+                "role": "assistant",
+                "content": ai_response
+            })
+            
+            return {
+                "response": ai_response,
+                "intent": "CHAT"
+            }
+            
+        except Exception as e:
+            logger.error(f"Image analysis LLM error: {e}")
+            return {
+                "response": f"Sorry, I had trouble analyzing that image: {str(e)}",
+                "intent": "CHAT"
+            }
+            
+    except Exception as e:
+        logger.error(f"Image analysis error: {e}")
+        return {
+            "response": f"Error processing image: {str(e)}",
+            "intent": "ERROR"
+        }
+
 @app.post("/chat")
 async def chat_endpoint(request: Request):
     """
     Chat endpoint with intent detection.
     Routes to appropriate handler based on detected intent.
+    Handles both form data and JSON with images.
     """
     try:
         session_id = get_session_id(request)
         
-        # Read form data from request body
+        # Check if request is JSON (for image analysis) or form data
+        content_type = request.headers.get("content-type", "")
+        
+        if "application/json" in content_type:
+            # Handle JSON request with image
+            json_data = await request.json()
+            message = json_data.get("message", "")
+            image_data = json_data.get("image")
+            
+            logger.info(f"Chat JSON request received: {message}")
+            
+            # If image is provided, analyze it
+            if image_data:
+                logger.info("Processing image analysis request")
+                return await analyze_image_with_chat(message, image_data, session_id)
+        
+        # Handle form data (original behavior)
         form_data = await request.form()
         message = form_data.get("message", "")
         
@@ -276,7 +355,7 @@ async def chat_endpoint(request: Request):
     except Exception as e:
         logger.error(f"Chat endpoint error: {e}")
         return {
-            "response": f"Error processing your request: {str(e)}",
+            "response": f"Sorry, there was an error processing your request: {str(e)}",
             "intent": "ERROR"
         }
 
