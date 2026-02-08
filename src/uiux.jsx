@@ -467,11 +467,13 @@ const LlamaChatbot = () => {
     setMessages(prev => [...prev, userMessage]);
     
     // Check if user is introducing their name
+    let isNameIntroduction = false;
     if (!userName && (input.toLowerCase().includes('my name is') || input.toLowerCase().includes('i am') || input.toLowerCase().includes('call me'))) {
       const nameMatch = input.match(/(?:my name is|i am|call me)\s+([a-zA-Z]+)/i);
       if (nameMatch && nameMatch[1]) {
         const extractedName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
         setUserName(extractedName);
+        isNameIntroduction = true;
         
         // Add acknowledgment message
         setTimeout(() => {
@@ -485,7 +487,10 @@ const LlamaChatbot = () => {
     }
     
     setInput("");
-    setIsTyping(true);
+    
+    // Only make API call if this isn't just a name introduction
+    if (!isNameIntroduction) {
+      setIsTyping(true);
 
     try {
       const params = new URLSearchParams({ question: input });
@@ -646,6 +651,7 @@ const LlamaChatbot = () => {
     } finally {
       setIsTyping(false);
       setAbortController(null);
+    }
     }
   };
 

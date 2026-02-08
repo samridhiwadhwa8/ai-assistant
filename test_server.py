@@ -17,6 +17,7 @@ import speech_recognition as sr
 import wave
 import tempfile
 import base64
+from memory import save_memory, load_session_memory, get_memory_stats
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -178,7 +179,7 @@ def detect_intent(text: str) -> str:
 
 async def analyze_image_with_chat(message: str, image_data: str, session_id: str):
     """
-    Analyze image using LLM with vision capabilities.
+    Analyze image using LLM with vision capabilities and memory.
     """
     try:
         if not ollama:
@@ -190,34 +191,32 @@ async def analyze_image_with_chat(message: str, image_data: str, session_id: str
         # Decode base64 image
         image_bytes = base64.b64decode(image_data)
         
-        # Create conversation with image
-        if session_id not in conversation_store:
-            conversation_store[session_id] = []
+        # Load conversation memory for this session
+        memory_messages = load_session_memory(session_id)
+        logger.info(f"Loaded {len(memory_messages)} messages from memory for image analysis")
         
-        # Add user message to conversation
-        conversation_store[session_id].append({
+        # Build conversation context (memory + current message with image)
+        conversation_context = memory_messages.copy()
+        conversation_context.append({
             "role": "user", 
             "content": message,
             "images": [image_bytes]
         })
         
-        # Keep last 4 messages for context
-        conversation_store[session_id] = conversation_store[session_id][-4:]
+        # Save user message to memory (without image to save space)
+        save_memory(session_id, "user", f"[Image analysis request]: {message}")
         
         try:
-            # Get response from LLM with vision
+            # Get response from LLM with vision and memory context
             response = await ollama.chat(
                 model='llama3',
-                messages=conversation_store[session_id].copy()
+                messages=conversation_context
             )
             
             ai_response = response['message']['content']
             
-            # Add to conversation history (without image to save memory)
-            conversation_store[session_id].append({
-                "role": "assistant",
-                "content": ai_response
-            })
+            # Save assistant response to memory
+            save_memory(session_id, "assistant", ai_response)
             
             return {
                 "response": ai_response,
@@ -299,18 +298,20 @@ async def chat_endpoint(request: Request):
         
         elif intent == 'CHAT':
             logger.info("Routing to normal chat")
-            # Normal chat processing with LLM
-            if session_id not in conversation_store:
-                conversation_store[session_id] = []
             
-            # Add user message to conversation
-            conversation_store[session_id].append({
+            # Load conversation memory for this session
+            memory_messages = load_session_memory(session_id)
+            logger.info(f"Loaded {len(memory_messages)} messages from memory")
+            
+            # Build conversation context (memory + current message)
+            conversation_context = memory_messages.copy()
+            conversation_context.append({
                 "role": "user", 
                 "content": message
             })
             
-            # Keep last 4 messages for context
-            conversation_store[session_id] = conversation_store[session_id][-4:]
+            # Save user message to memory
+            save_memory(session_id, "user", message)
             
             if not ollama:
                 return {
@@ -319,19 +320,16 @@ async def chat_endpoint(request: Request):
                 }
             
             try:
-                # Get response from LLM
+                # Get response from LLM with memory context
                 response = await ollama.chat(
                     model='llama3',
-                    messages=conversation_store[session_id].copy()
+                    messages=conversation_context
                 )
                 
                 ai_response = response['message']['content']
                 
-                # Add to conversation history
-                conversation_store[session_id].append({
-                    "role": "assistant",
-                    "content": ai_response
-                })
+                # Save assistant response to memory
+                save_memory(session_id, "assistant", ai_response)
                 
                 return {
                     "response": ai_response,
@@ -672,56 +670,6 @@ async def handle_screen_intent(text: str, session_id: str):
             media_type="text/event-stream",
             headers={"X-Session-ID": session_id}
         )
-
-async def handle_chat_intent(text: str, session_id: str):
-    """Handle normal chat intent"""
-    logger.info(f"Handling CHAT intent: {text}")
-    
-    # Add to conversation history
-    if session_id not in conversation_store:
-        conversation_store[session_id] = []
-    
-    # Add user message to conversation history
-    conversation_store[session_id].append({
-        "role": "user",
-        "content": text
-    })
-    
-    # Keep only the last 4 messages (2 exchanges) to maintain context
-    conversation_store[session_id] = conversation_store[session_id][-4:]
-    
-    # Generate response using Ollama
-    response = await ollama.chat(
-        model='llama3',  # Use tiny 0.5B parameter model (394 MB)
-        messages=conversation_store[session_id].copy(),
-        stream=True
-    )
-    
-    # Stream the response
-    async def generate():
-        assistant_message = ""
-        async for chunk in response:
-            if chunk and hasattr(chunk, 'message') and hasattr(chunk.message, 'content'):
-                content = chunk.message.content
-                if content:
-                    # Escape special characters for JSON
-                    escaped_content = content.replace('"', '\\"').replace('\n', '\\n')
-                    assistant_message += content
-                    # Send each chunk to the client
-                    yield f"data: {{\"chunk\": \"{escaped_content}\"}}\n\n"
-        
-        # Add the complete assistant message to conversation history
-        if assistant_message:
-            conversation_store[session_id].append({
-                "role": "assistant", 
-                "content": assistant_message
-            })
-    
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={"X-Session-ID": session_id}
-    )
 
 async def handle_chat_intent(text: str, session_id: str):
     """Handle normal chat intent"""
@@ -1529,6 +1477,11 @@ async def search_screen(query: str, request: Request):
 @app.options("/chat")
 async def options_chat():
     return {"status": "ok"}
+
+@app.get("/memory-stats")
+async def memory_stats():
+    """Get memory statistics for debugging"""
+    return get_memory_stats()
 
 if __name__ == "__main__":
     import uvicorn
