@@ -844,7 +844,7 @@ async def voice_to_text(request: Request):
                 logger.warning(f"Could not delete temporary file {temp_file_path}")
                 pass
             
-            # Now process the transcribed text as normal chat (no intent detection)
+            # Now process the transcribed text
             if text and text not in ["Could not understand audio", "Speech recognition service unavailable"]:
                 logger.info(f"Transcribed text: {text}")
                 
@@ -852,7 +852,7 @@ async def voice_to_text(request: Request):
                 return await handle_chat_intent(text, session_id)
             else:
                 # Return error if speech recognition failed
-                # Properly escape the error message for JSON
+                logger.error(f"Speech recognition failed: {text}")
                 escaped_text = text.replace('"', '\\"').replace('\n', '\\n')
                 async def error_stream():
                     yield f"data: {{\"chunk\": \"{escaped_text}\"}}\n\n"

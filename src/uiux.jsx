@@ -904,6 +904,8 @@ const LlamaChatbot = () => {
       } else {
         console.error('Stream error:', streamError);
       }
+    } finally {
+      setIsTyping(false);
     }
   };
 

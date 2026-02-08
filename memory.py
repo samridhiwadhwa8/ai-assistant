@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 from datetime import datetime
 
 MEMORY_FILE = "memory.json"
-MAX_MESSAGES = 10
+MAX_MESSAGES = 20
 
 def load_memory() -> Dict[str, List[Dict[str, Any]]]:
     """Load all conversation memory from JSON file"""

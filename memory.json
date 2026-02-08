@@ -3,26 +3,6 @@
     {
       "role": "user",
       "content": "my name is samridhi",
-      "timestamp": "2026-02-08T19:07:53.749829"
-    },
-    {
-      "role": "assistant",
-      "content": "Nice to meet you, Samridhi! That's a beautiful and unique name. Where are you from?",
-      "timestamp": "2026-02-08T19:08:15.374548"
-    },
-    {
-      "role": "user",
-      "content": "wassup??",
-      "timestamp": "2026-02-08T19:09:13.747892"
-    },
-    {
-      "role": "assistant",
-      "content": "Not much, just chillin'! How about you, Samridhi? What's new with you?",
-      "timestamp": "2026-02-08T19:09:22.038577"
-    },
-    {
-      "role": "user",
-      "content": "my name is samridhi",
       "timestamp": "2026-02-08T19:12:35.957662"
     },
     {
@@ -49,6 +29,26 @@
       "role": "assistant",
       "content": "Your name is SAMRIDHI! I remember it because we had a lovely conversation earlier!",
       "timestamp": "2026-02-08T19:16:25.459057"
+    },
+    {
+      "role": "user",
+      "content": "capital of bihar",
+      "timestamp": "2026-02-08T19:20:00.553791"
+    },
+    {
+      "role": "assistant",
+      "content": "That's an easy one, Samridhi! The capital of Bihar is PATNA!",
+      "timestamp": "2026-02-08T19:22:31.719435"
+    },
+    {
+      "role": "user",
+      "content": "talk tp me",
+      "timestamp": "2026-02-08T19:24:50.560854"
+    },
+    {
+      "role": "assistant",
+      "content": "I'd love to chat with you, Samridhi!\n\nSo, how was your day so far? Anything exciting happen or anything on your mind that you'd like to share?\n\nIf not, we could play a game, have a fun conversation, or even learn something new together!\n\nWhat sounds good to you?",
+      "timestamp": "2026-02-08T19:25:39.222992"
     }
   ]
 }
