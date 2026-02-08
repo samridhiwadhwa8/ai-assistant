@@ -117,6 +117,169 @@ def get_session_id(request: Request) -> str:
         session_id = str(uuid.uuid4())
         logger.info(f"Generated new session ID: {session_id}")
     return session_id
+
+# Intent detection function
+def detect_intent(text: str) -> str:
+    """
+    Detect user intent based on keyword matching.
+    Returns: 'CHAT', 'SCREEN', 'VOICE', 'UNKNOWN'
+    """
+    if not text or not isinstance(text, str):
+        return 'UNKNOWN'
+    
+    text_lower = text.lower().strip()
+    logger.info(f"Detecting intent for: '{text_lower}'")
+    
+    # Voice-related keywords (check first to be more specific)
+    voice_keywords = [
+        'talk to me', 'voice command', 'voice input', 'voice assistant',
+        'start voice', 'activate voice', 'use voice', 'voice mode'
+    ]
+    
+    # Voice deactivation keywords
+    voice_deactivate_keywords = [
+        'stop listening', 'stop voice', 'stop recording', 'voice off', 'microphone off',
+        'deactivate voice', 'voice deactivate', 'stop talking'
+    ]
+    
+    # Screen-related keywords (more specific to avoid false positives)
+    screen_keywords = [
+        'analyze screen', 'what\'s on my screen', 'what is on my screen',
+        'screenshot', 'capture screen', 'analyze this page', 'what do you see',
+        'look at my screen', 'read my screen', 'screen content',
+        'what can you see', 'analyze my display', 'screen analysis'
+    ]
+    
+    # Check for voice deactivation first (highest priority)
+    for keyword in voice_deactivate_keywords:
+        if keyword in text_lower:
+            logger.info(f"Voice deactivation detected with keyword: '{keyword}'")
+            return 'VOICE_DEACTIVATE'
+    
+    # Check for voice intent first (more specific)
+    for keyword in voice_keywords:
+        if keyword in text_lower:
+            logger.info(f"Voice intent detected with keyword: '{keyword}'")
+            return 'VOICE'
+    
+    # Check for screen intent
+    for keyword in screen_keywords:
+        if keyword in text_lower:
+            logger.info(f"Screen intent detected with keyword: '{keyword}'")
+            return 'SCREEN'
+    
+    # Default to chat if no specific intent detected
+    if len(text_lower) > 0:
+        logger.info(f"Chat intent detected (default)")
+        return 'CHAT'
+    
+    logger.info(f"Unknown intent detected")
+    return 'UNKNOWN'
+
+@app.post("/chat")
+async def chat_endpoint(request: Request):
+    """
+    Chat endpoint with intent detection.
+    Routes to appropriate handler based on detected intent.
+    """
+    try:
+        session_id = get_session_id(request)
+        
+        # Read form data from request body
+        form_data = await request.form()
+        message = form_data.get("message", "")
+        
+        logger.info(f"Chat message received: {message}")
+        
+        # Detect user intent
+        intent = detect_intent(message)
+        logger.info(f"Detected intent: {intent}")
+        
+        # Route to appropriate handler based on intent
+        if intent == 'SCREEN':
+            logger.info("Routing to screen analysis")
+            # Call analyze_screen with the message as question
+            return await analyze_screen(request, question=message)
+        
+        elif intent == 'VOICE':
+            logger.info("Routing to voice pipeline")
+            # For voice intent, return instructions to start voice recording
+            return {
+                "response": "🎤 Voice mode activated! I'm now listening... Speak clearly and I'll respond. Say 'stop listening' or 'stop voice' to deactivate.",
+                "intent": intent,
+                "voice_mode": True
+            }
+        
+        elif intent == 'VOICE_DEACTIVATE':
+            logger.info("Deactivating voice mode")
+            return {
+                "response": "🔇 Voice mode deactivated. You can now type messages or say 'talk to me' to activate voice again.",
+                "intent": intent,
+                "voice_mode": False
+            }
+        
+        elif intent == 'CHAT':
+            logger.info("Routing to normal chat")
+            # Normal chat processing with LLM
+            if session_id not in conversation_store:
+                conversation_store[session_id] = []
+            
+            # Add user message to conversation
+            conversation_store[session_id].append({
+                "role": "user", 
+                "content": message
+            })
+            
+            # Keep last 4 messages for context
+            conversation_store[session_id] = conversation_store[session_id][-4:]
+            
+            if not ollama:
+                return {
+                    "response": f"AI model not available. Message: {message}",
+                    "intent": intent
+                }
+            
+            try:
+                # Get response from LLM
+                response = await ollama.chat(
+                    model='llama3',
+                    messages=conversation_store[session_id].copy()
+                )
+                
+                ai_response = response['message']['content']
+                
+                # Add to conversation history
+                conversation_store[session_id].append({
+                    "role": "assistant",
+                    "content": ai_response
+                })
+                
+                return {
+                    "response": ai_response,
+                    "intent": intent
+                }
+                
+            except Exception as e:
+                logger.error(f"Chat LLM error: {e}")
+                return {
+                    "response": f"Sorry, I had trouble processing that: {str(e)}",
+                    "intent": intent
+                }
+        
+        else:  # UNKNOWN intent
+            logger.info("Unknown intent, returning default response")
+            return {
+                "response": "I'm not sure what you're asking for. You can ask me to analyze your screen, use voice commands, or just chat normally!",
+                "intent": intent
+            }
+            
+    except Exception as e:
+        logger.error(f"Chat endpoint error: {e}")
+        return {
+            "response": f"Error processing your request: {str(e)}",
+            "intent": "ERROR"
+        }
+
 @app.get("/chat")
 async def chat(question: str, request: Request):
     session_id = get_session_id(request)

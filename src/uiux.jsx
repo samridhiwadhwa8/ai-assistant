@@ -481,13 +481,13 @@ const LlamaChatbot = () => {
       const controller = new AbortController();
       setAbortController(controller);
       
-      const response = await fetch(`http://localhost:8000/chat?${params}`, {
-        method: 'GET',
+      const response = await fetch(`http://localhost:8000/chat`, {
+        method: 'POST',
         headers: {
-          'Accept': 'text/event-stream',
+          'Content-Type': 'application/x-www-form-urlencoded',
           'X-Session-ID': sessionId || undefined
         },
-        signal: controller.signal
+        body: `message=${encodeURIComponent(input)}`
       });
 
       const newSessionId = response.headers.get('X-Session-ID');
@@ -501,57 +501,109 @@ const LlamaChatbot = () => {
         throw new Error(errorData.detail || `Server responded with ${response.status}`);
       }
 
-      // Add an initial assistant message for streaming
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: "",
-        timestamp: new Date(),
-        isStreaming: true
-      }]);
-
-      // Process the stream
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // Handle JSON response from POST endpoint
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('text/event-stream')) {
+        // Handle streaming response (from SCREEN intent)
+        console.log('Handling streaming response');
         
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
+        // Add streaming message placeholder
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+          isStreaming: true
+        }]);
+
+        // Process the stream
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
           
-          try {
-            const data = JSON.parse(line.substring(6).trim());
-            if (data.chunk) {
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = { ...newMessages[newMessages.length - 1] };
-                if (lastMessage.role === 'assistant') {
-                  lastMessage.content += data.chunk;
-                }
-                return [...newMessages.slice(0, -1), lastMessage];
-              });
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            
+            try {
+              const data = JSON.parse(line.substring(6).trim());
+              if (data.chunk) {
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = { ...newMessages[newMessages.length - 1] };
+                  if (lastMessage.role === 'assistant') {
+                    lastMessage.content += data.chunk;
+                  }
+                  return [...newMessages.slice(0, -1), lastMessage];
+                });
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
             }
-          } catch (e) {
-            console.error('Error parsing chunk:', e);
+          }
+        }
+
+        // Mark streaming as complete
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = { ...newMessages[newMessages.length - 1] };
+          if (lastMessage.role === 'assistant') {
+            lastMessage.isStreaming = false;
+          }
+          return [...newMessages.slice(0, -1), lastMessage];
+        });
+        
+      } else {
+        // Handle JSON response (from CHAT, VOICE, UNKNOWN intents)
+        console.log('Handling JSON response');
+        
+        // Add temporary typing indicator message
+        const typingMessageId = Date.now().toString();
+        setMessages(prev => [...prev, {
+          id: typingMessageId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+          isStreaming: true
+        }]);
+        
+        const data = await response.json();
+        console.log('Chat response:', data);
+        
+        // Replace typing message with actual response
+        setMessages(prev => prev.map(msg => 
+          msg.id === typingMessageId 
+            ? {
+                role: "assistant",
+                content: data.response || "Sorry, I couldn't process that.",
+                timestamp: new Date()
+              }
+            : msg
+        ));
+        
+        // Auto-start voice recording if voice mode is activated
+        if (data.voice_mode && data.intent === 'VOICE') {
+          console.log('🎤 Auto-starting voice recording...');
+          setTimeout(() => {
+            startRecording();
+          }, 1000);
+        }
+        
+        // Auto-stop voice recording if voice mode is deactivated
+        if (data.intent === 'VOICE_DEACTIVATE' && data.voice_mode === false) {
+          console.log('🔇 Auto-stopping voice recording...');
+          if (isRecording) {
+            stopRecording();
           }
         }
       }
-
-      // Mark streaming as complete
-      setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMessage = { ...newMessages[newMessages.length - 1] };
-        if (lastMessage.role === 'assistant') {
-          lastMessage.isStreaming = false;
-        }
-        return [...newMessages.slice(0, -1), lastMessage];
-      });
       
     } catch (error) {
       console.error('Error sending message:', error);
@@ -811,27 +863,13 @@ const LlamaChatbot = () => {
             return [...newMessages.slice(0, -1), lastMessage];
           });
         }
-      } else {
-        // Handle non-streaming response
-        const data = await response.json();
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: data.text || "No text was found in the audio.",
-          timestamp: new Date()
-        }]);
       }
-    } catch (error) {
-      console.error('Error sending voice to server:', error);
-      setMessages(prev => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `❌ Error: ${error.message}`,
-          timestamp: new Date()
-        }
-      ]);
-    } finally {
-      setIsTyping(false);
+    } catch (streamError) {
+      if (streamError.name === 'AbortError') {
+        console.log('Stream was aborted (timeout or user cancelled)');
+      } else {
+        console.error('Stream error:', streamError);
+      }
     }
   };
 
@@ -933,13 +971,14 @@ const LlamaChatbot = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-const handleKeyPress = (e) => {
-if (e.key === 'Enter' && !e.shiftKey) {
-  e.preventDefault();
-  handleSend();
-}};
+    const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
-const isIframe = window.self !== window.top;
+  const isIframe = window.self !== window.top;
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -994,7 +1033,6 @@ const isIframe = window.self !== window.top;
   const textStyle = isIframe 
     ? {}
     : {};
-
 
   return (
     <div 
@@ -1099,9 +1137,6 @@ const isIframe = window.self !== window.top;
                 }`}
                 style={{
                   background: 'rgba(0, 0, 0, 0.08)',
-                  backdropFilter: 'blur(6px) brightness(0.9)',
-                  WebkitBackdropFilter: 'blur(6px) brightness(0.9)',
-                  border: '1px solid rgba(255,255,255,0.08)',
                   borderRadius: '12px'
                 }}
               >
@@ -1125,10 +1160,31 @@ const isIframe = window.self !== window.top;
             </div>
           </div>
         ))}
-        <div ref={messagesEndRef} />
+        
+        {/* Typing indicator when processing but no streaming message yet */}
+        {isTyping && !messages.some(msg => msg.isStreaming) && (
+          <div className="flex justify-start">
+            <div
+              className="max-w-3xl rounded-xl p-4 text-white rounded-bl-none"
+              style={{
+                background: 'rgba(0, 0, 0, 0.08)',
+                borderRadius: '12px'
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex space-x-1">
+                  <div className="w-1 h-1 bg-white/60 rounded-full animate-bounce"></div>
+                  <div className="w-1 h-1 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-1 h-1 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef}></div>
       </div>
       )}
-
+      
       {!isMinimized && (
         <div className="p-4" style={{background: 'rgba(0, 0, 0, 0.08)', backdropFilter: 'blur(6px) brightness(0.9)', WebkitBackdropFilter: 'blur(6px) brightness(0.9)', borderTop: 'none'}}>
         <div className="flex gap-2 mb-3">
@@ -1232,6 +1288,6 @@ const isIframe = window.self !== window.top;
       )}
     </div>
   );
-};
+}
 
 export default LlamaChatbot;
