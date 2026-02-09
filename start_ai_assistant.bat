@@ -5,6 +5,15 @@ cd /d "C:\Users\samridhi wadhwa\llm"
 start /B python test_server.py
 echo Starting Ollama...
 start /B ollama serve
+echo Starting Frontend...
+start /B npm start
+echo Waiting for frontend to start...
+timeout /t 10 >nul
+echo Opening browser...
+start http://localhost:3001
 echo AI Assistant is now running in background!
+echo Frontend: http://localhost:3001
+echo Backend: http://localhost:8000
+echo Ollama: http://localhost:11434
 timeout /t 3 >nul
 exit
