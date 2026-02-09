@@ -172,10 +172,15 @@ const LlamaChatbot = () => {
       }
       
       // Shopping and E-commerce Sites
-      if (hostname.includes('amazon.com') || hostname.includes('ebay.com') || 
-          hostname.includes('shop') || hostname.includes('etsy.com') || 
-          hostname.includes('aliexpress.com') || hostname.includes('walmart.com') || 
-          hostname.includes('target.com') || hostname.includes('bestbuy.com')) {
+      if (hostname.includes('amazon.com') || hostname.includes('amazon.') || hostname.includes('ebay.com') || hostname.includes('ebay.') || 
+          hostname.includes('shop') || hostname.includes('etsy.com') || hostname.includes('etsy.') ||
+          hostname.includes('aliexpress.com') || hostname.includes('aliexpress.') ||
+          hostname.includes('walmart.com') || hostname.includes('walmart.') ||
+          hostname.includes('target.com') || hostname.includes('target.') ||
+          hostname.includes('bestbuy.com') || hostname.includes('bestbuy.') ||
+          hostname.includes('flipkart.com') || hostname.includes('flipkart.') ||
+          hostname.includes('myntra.com') || hostname.includes('myntra.') ||
+          hostname.includes('ajio.com') || hostname.includes('ajio.')) {
         console.log('🎯 Detected: Shopping site');
         return {
           type: 'shopping',
@@ -304,7 +309,15 @@ const LlamaChatbot = () => {
           message: "Reading documentation. Need help understanding these concepts or finding specific information?",
           suggestions: ['Explain this concept', 'Find examples', 'Simplify this explanation']
         };
-      } else if (hostname.includes('amazon.com') || hostname.includes('ebay.com') || hostname.includes('shop')) {
+      } else if (hostname.includes('amazon.com') || hostname.includes('amazon.') || hostname.includes('ebay.com') || hostname.includes('ebay.') || 
+               hostname.includes('shop') || hostname.includes('etsy.com') || hostname.includes('etsy.') ||
+               hostname.includes('aliexpress.com') || hostname.includes('aliexpress.') ||
+               hostname.includes('walmart.com') || hostname.includes('walmart.') ||
+               hostname.includes('target.com') || hostname.includes('target.') ||
+               hostname.includes('bestbuy.com') || hostname.includes('bestbuy.') ||
+               hostname.includes('flipkart.com') || hostname.includes('flipkart.') ||
+               hostname.includes('myntra.com') || hostname.includes('myntra.') ||
+               hostname.includes('ajio.com') || hostname.includes('ajio.')) {
         console.log('🎯 Detected: Shopping');
         return {
           type: 'shopping',
@@ -380,6 +393,208 @@ const LlamaChatbot = () => {
       window.removeEventListener('hashchange', handleUrlChange);
     };
   }, [userName]);
+
+  // ===== AUTONOMY LAYER: Proactive Suggestions =====
+  const [lastAutonomySuggestion, setLastAutonomySuggestion] = useState(null);
+  const [sessionStartTime] = useState(Date.now());
+  const [userActivityTime, setUserActivityTime] = useState(Date.now());
+
+  // Autonomy rule engine
+  const checkAutonomyRules = (context, url) => {
+    const currentTime = Date.now();
+    const sessionDuration = currentTime - sessionStartTime;
+    const timeSinceLastActivity = currentTime - userActivityTime;
+    
+    // Rule 1: Long coding session - suggest break
+    if (context?.type === 'coding' && sessionDuration > 2 * 60 * 60 * 1000) { // 2 hours
+      return {
+        type: 'break_suggestion',
+        priority: 'high',
+        content: "You've been coding for a while. Time for a quick break? I can suggest some stretches or we can review your progress.",
+        action: 'suggest_break'
+      };
+    }
+    
+    // Rule 2: LeetCode progress analysis
+    if (url?.includes('leetcode.com') && sessionDuration > 30 * 60 * 1000) { // 30 minutes
+      return {
+        type: 'progress_analysis',
+        priority: 'medium',
+        content: "Want me to analyze your LeetCode progress? I can track your problem-solving patterns and suggest areas to improve.",
+        action: 'analyze_progress'
+      };
+    }
+    
+    // Rule 3: YouTube content summary
+    if (context?.type === 'video' && url?.includes('youtube.com')) {
+      return {
+        type: 'content_summary',
+        priority: 'low',
+        content: "Watching a video? I can summarize the content or extract key points for you. Just say 'summarize this video'!",
+        action: 'offer_summary'
+      };
+    }
+    
+    // Rule 4: Gmail productivity
+    if (url?.includes('gmail.com') || url?.includes('mail.google.com')) {
+      return {
+        type: 'productivity_helper',
+        priority: 'medium',
+        content: "In your inbox? I can help draft replies, organize emails, or suggest quick responses. Want me to scan for important messages?",
+        action: 'help_email'
+      };
+    }
+    
+    // Rule 5: Error page assistance
+    if (url?.includes('error') || url?.includes('404') || url?.includes('500')) {
+      return {
+        type: 'error_assistance',
+        priority: 'high',
+        content: "I see an error page. I can help diagnose this issue or suggest fixes. Want me to analyze what went wrong?",
+        action: 'fix_error'
+      };
+    }
+    
+    // Rule 6: Documentation deep dive
+    if (context?.type === 'documentation' && sessionDuration > 15 * 60 * 1000) { // 15 minutes
+      return {
+        type: 'learning_assistance',
+        priority: 'medium',
+        content: "Reading documentation for a while. Need help understanding concepts? I can explain complex topics or find examples.",
+        action: 'explain_concepts'
+      };
+    }
+    
+    // Rule 7: Shopping comparison
+    if (context?.type === 'shopping') {
+      console.log('🛒 Shopping helper rule triggered for URL:', url);
+      return {
+        type: 'shopping_helper',
+        priority: 'low',
+        content: "Shopping around? I can compare products, find better deals, or check reviews. Just show me what you're looking at.",
+        action: 'compare_products'
+      };
+    }
+    
+    return null; // No autonomy trigger
+  };
+
+  // Autonomy suggestion manager
+  const makeAutonomousSuggestion = (suggestion) => {
+    console.log('🤖 makeAutonomousSuggestion called with:', suggestion);
+    
+    // Don't suggest if user was recently active (avoid being annoying)
+    const timeSinceLastActivity = Date.now() - userActivityTime;
+    console.log('⏰ Time since last activity:', timeSinceLastActivity, 'ms');
+    if (timeSinceLastActivity < 2 * 60 * 1000) { // 2 minutes grace period
+      console.log('❌ Autonomy blocked: User too recently active');
+      return; // 2 minutes grace period
+    }
+    
+    // Don't suggest same thing repeatedly
+    if (lastAutonomySuggestion?.type === suggestion.type) {
+      console.log('❌ Autonomy blocked: Same suggestion type already used');
+      return;
+    }
+    
+    console.log('✅ Autonomy suggestion approved, adding to chat...');
+    
+    // Add the autonomous suggestion as a system message
+    const autonomyMessage = {
+      role: "assistant",
+      content: `Autonomous Suggestion: ${suggestion.content}`,
+      timestamp: new Date(),
+      isAutonomy: true,
+      autonomyAction: suggestion.action,
+      priority: suggestion.priority
+    };
+    
+    console.log('📝 Adding autonomy message:', autonomyMessage);
+    setMessages(prev => {
+      console.log('📨 Current messages count:', prev.length);
+      const newMessages = [...prev, autonomyMessage];
+      console.log('📨 New messages count:', newMessages.length);
+      return newMessages;
+    });
+    setLastAutonomySuggestion(suggestion);
+    
+    console.log('🤖 Autonomy triggered successfully:', suggestion);
+  };
+
+  // Enhanced context update with autonomy
+  useEffect(() => {
+    const updateContextWithAutonomy = () => {
+      const context = detectPageContext();
+      setCurrentContext(context);
+      console.log('🔄 Context updated:', context);
+      
+      // Check autonomy rules
+      const autonomySuggestion = checkAutonomyRules(context, parentUrl);
+      if (autonomySuggestion) {
+        // Delay suggestion to feel natural, not immediate
+        setTimeout(() => {
+          makeAutonomousSuggestion(autonomySuggestion);
+        }, 3000 + Math.random() * 5000); // 3-8 seconds delay
+      }
+      
+      // Always update welcome message if it's the first assistant message
+      if (messages.length > 0 && messages[0].role === 'assistant') {
+        const contextualWelcome = getContextualWelcome(userName);
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[0] = {
+            role: "assistant",
+            content: contextualWelcome,
+            timestamp: new Date()
+          };
+          return newMessages;
+        });
+        console.log('📝 Updated welcome message:', contextualWelcome);
+      }
+    };
+
+    updateContextWithAutonomy();
+    
+    // Listen for URL changes (for single-page apps)
+    const handleUrlChange = () => {
+      setTimeout(updateContextWithAutonomy, 1000); // Delay to ensure URL is updated
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, [userName, parentUrl]);
+
+  // Track user activity for autonomy timing
+  useEffect(() => {
+    const trackActivity = (event) => {
+      // Don't track activity if it's within the chat interface
+      const chatElement = document.querySelector('.chat-interface, .chat-container, [class*="chat"]');
+      if (chatElement && chatElement.contains(event.target)) {
+        return; // Ignore chat interactions
+      }
+      
+      setUserActivityTime(Date.now());
+      console.log('👆 User activity tracked:', event.type);
+    };
+    
+    // Track user interactions (but exclude chat)
+    window.addEventListener('click', trackActivity);
+    window.addEventListener('keydown', trackActivity);
+    window.addEventListener('scroll', trackActivity);
+    
+    return () => {
+      window.removeEventListener('click', trackActivity);
+      window.removeEventListener('keydown', trackActivity);
+      window.removeEventListener('scroll', trackActivity);
+    };
+  }, []);
+
+  // ===== END AUTONOMY LAYER =====
 
   // Persistence functions
   const saveChatHistory = (messagesToSave) => {
@@ -751,7 +966,45 @@ const LlamaChatbot = () => {
     window.analyzeScreen = analyzeScreen;
     window.reactCaptureScreen = captureScreen;
     window.reactAnalyzeScreen = analyzeScreen;
-    console.log('🚀 REACT: Functions exposed to window');
+    
+    // Expose test functions for autonomy debugging
+    window.testContextDetection = (url) => {
+      const context = detectPageContextWithUrl(url);
+      console.log('🧪 Test Context Detection:', url, '→', context);
+      return context;
+    };
+    
+    window.testAutonomyRules = (url) => {
+      const context = detectPageContextWithUrl(url);
+      const suggestion = checkAutonomyRules(context, url);
+      console.log('🤖 Test Autonomy Rules:', url, '→', suggestion);
+      return suggestion;
+    };
+    
+    // Reset autonomy state for testing
+    window.resetAutonomy = () => {
+      setLastAutonomySuggestion(null);
+      setUserActivityTime(Date.now() - 10 * 60 * 1000); // Set to 10 minutes ago
+      console.log('🔄 Autonomy state reset - ready for testing');
+    };
+    
+    // Manual trigger for autonomy suggestions (bypasses timing restrictions)
+    window.triggerAutonomy = (url) => {
+      const context = detectPageContextWithUrl(url);
+      const suggestion = checkAutonomyRules(context, url);
+      if (suggestion) {
+        console.log('🚀 Manually triggering autonomy:', suggestion);
+        makeAutonomousSuggestion(suggestion);
+        return suggestion;
+      } else {
+        console.log('❌ No autonomy rule found for:', url);
+        return null;
+      }
+    };
+    
+    console.log('� REACT: Functions exposed to window');
+    console.log('🧪 Test functions available: window.testContextDetection(), window.testAutonomyRules()');
+    console.log('� Autonomy functions available: window.resetAutonomy(), window.triggerAutonomy()');
     
     console.log('🚀 UIUX: Is iframe mode:', isIframe);
   }, []);
