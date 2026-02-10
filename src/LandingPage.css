@@ -57,6 +57,18 @@
   height: 32px;
 }
 
+.card-icon {
+  width: 24px;
+  height: 24px;
+  color: white;
+}
+
+.btn-icon {
+  width: 16px;
+  height: 16px;
+  color: white;
+}
+
 .get-started-btn {
   display: flex;
   align-items: center;
@@ -296,6 +308,101 @@
 .feature-card p {
   color: #666;
   line-height: 1.6;
+}
+
+/* Unique Feature */
+.unique-feature {
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.unique-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+.unique-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  color: #333;
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.unique-description {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.unique-highlights {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.highlight {
+  text-align: center;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 120px;
+}
+
+.highlight-number {
+  display: block;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+}
+
+.highlight-text {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.unique-visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pulse-circle {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s ease-in-out infinite;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+}
+
+.pulse-icon {
+  width: 60px;
+  height: 60px;
+  color: white;
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    transform: scale(1); 
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+  }
+  50% { 
+    transform: scale(1.05); 
+    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+  }
 }
 
 /* CTA Section */

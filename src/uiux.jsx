@@ -159,6 +159,18 @@ const LlamaChatbot = () => {
         };
       }
       
+      // Email and Productivity Sites
+      if (hostname.includes('gmail.com') || hostname.includes('mail.google.com') || 
+          hostname.includes('outlook.com') || hostname.includes('mail.yahoo.com') ||
+          hostname.includes('protonmail.com') || hostname.includes('mail.') ||
+          url.includes('mail.google.com') || url.includes('gmail.com')) {
+        console.log('🎯 Detected: Email/Productivity site');
+        return {
+          type: 'email',
+          message: "Checking email? I can help draft replies, organize your inbox, or suggest quick responses."
+        };
+      }
+      
       // E-Learning Platforms
       if (hostname.includes('coursera.org') || hostname.includes('udemy.com') || 
           hostname.includes('edx.org') || hostname.includes('khanacademy.org') || 
@@ -553,6 +565,7 @@ const LlamaChatbot = () => {
       }
     };
 
+    // Initial context update
     updateContextWithAutonomy();
     
     // Listen for URL changes (for single-page apps)
@@ -569,28 +582,89 @@ const LlamaChatbot = () => {
     };
   }, [userName, parentUrl]);
 
+  // Continuous context checking
+  useEffect(() => {
+    const contextInterval = setInterval(() => {
+      const context = detectPageContext();
+      if (context && context.type !== currentContext?.type) {
+        console.log('🔄 Context updated:', context);
+        setCurrentContext(context);
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => {
+      clearInterval(contextInterval);
+      console.log('🔄 Context interval cleared');
+    };
+  }, []);
+
+  // Continuous autonomy checking loop
+  useEffect(() => {
+    const autonomyInterval = setInterval(() => {
+      const context = detectPageContext();
+      const autonomySuggestion = checkAutonomyRules(context, parentUrl);
+      if (autonomySuggestion) {
+        console.log('🤖 Continuous autonomy check - suggestion found:', autonomySuggestion);
+        
+        // Don't suggest if user was recently active (avoid being annoying)
+        const timeSinceLastActivity = Date.now() - userActivityTime;
+        console.log('⏰ Time since last activity:', timeSinceLastActivity, 'ms');
+        if (timeSinceLastActivity < 10 * 60 * 1000) { // 10 minutes grace period (much longer)
+          console.log('❌ Autonomy blocked: User too recently active');
+          return; // 10 minutes grace period
+        }
+        
+        // Don't suggest same thing repeatedly
+        if (lastAutonomySuggestion?.type === autonomySuggestion.type) {
+          console.log('❌ Autonomy blocked: Same suggestion type already used');
+          return;
+        }
+        
+        makeAutonomousSuggestion(autonomySuggestion);
+      }
+    }, 120 * 1000); // Check every 2 minutes (much slower)
+
+    return () => {
+      clearInterval(autonomyInterval);
+      console.log('🛑 Autonomy interval cleared');
+    };
+  }, [parentUrl]);
+
   // Track user activity for autonomy timing
   useEffect(() => {
     const trackActivity = (event) => {
       // Don't track activity if it's within the chat interface
       const chatElement = document.querySelector('.chat-interface, .chat-container, [class*="chat"]');
       if (chatElement && chatElement.contains(event.target)) {
+        console.log('🚫 Ignoring chat interaction:', event.type);
         return; // Ignore chat interactions
       }
       
+      // Only track meaningful activity, not every scroll
+      if (event.type === 'scroll') {
+        // Only track scroll if it's significant (page scroll, not small movements)
+        const scrollThreshold = 100; // pixels
+        if (window.scrollY < scrollThreshold) {
+          return; // Ignore small scrolls near top
+        }
+      }
+      
+      // Update activity time for any meaningful interaction
       setUserActivityTime(Date.now());
-      console.log('👆 User activity tracked:', event.type);
+      console.log('👆 User activity tracked:', event.type, 'at', new Date().toLocaleTimeString());
     };
     
-    // Track user interactions (but exclude chat)
+    // Track meaningful user interactions (but exclude chat and excessive scrolling)
     window.addEventListener('click', trackActivity);
     window.addEventListener('keydown', trackActivity);
     window.addEventListener('scroll', trackActivity);
+    window.addEventListener('mousemove', trackActivity); // Add mouse movement tracking
     
     return () => {
       window.removeEventListener('click', trackActivity);
       window.removeEventListener('keydown', trackActivity);
       window.removeEventListener('scroll', trackActivity);
+      window.removeEventListener('mousemove', trackActivity);
     };
   }, []);
 
@@ -986,6 +1060,30 @@ const LlamaChatbot = () => {
       setLastAutonomySuggestion(null);
       setUserActivityTime(Date.now() - 10 * 60 * 1000); // Set to 10 minutes ago
       console.log('🔄 Autonomy state reset - ready for testing');
+    };
+    
+    // Force autonomy (bypass all restrictions)
+    window.forceAutonomy = (url) => {
+      const context = detectPageContextWithUrl(url);
+      const suggestion = checkAutonomyRules(context, url);
+      if (suggestion) {
+        console.log('🚀 Forcing autonomy (bypassing restrictions):', suggestion);
+        // Add directly to messages without checks
+        const autonomyMessage = {
+          role: "assistant",
+          content: `Autonomous Suggestion: ${suggestion.content}`,
+          timestamp: new Date(),
+          isAutonomy: true,
+          autonomyAction: suggestion.action,
+          priority: suggestion.priority
+        };
+        setMessages(prev => [...prev, autonomyMessage]);
+        setLastAutonomySuggestion(suggestion);
+        return suggestion;
+      } else {
+        console.log('❌ No autonomy rule found for:', url);
+        return null;
+      }
     };
     
     // Manual trigger for autonomy suggestions (bypasses timing restrictions)

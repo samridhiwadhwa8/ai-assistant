@@ -156,22 +156,17 @@
   flex: 1;
 }
 
-.step-icon {
-  width: 40px;
-  height: 40px;
-  color: #667eea;
-  margin-bottom: 1rem;
-}
-
 .step-content h3 {
   font-size: 1.25rem;
   margin-bottom: 0.5rem;
   color: #333;
+  font-weight: 600;
 }
 
 .step-content p {
   color: #666;
   line-height: 1.6;
+  font-size: 1.1rem;
 }
 
 /* Features Section */
@@ -210,6 +205,9 @@
   justify-content: center;
   margin: 0 auto 1rem;
   color: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  position: relative;
 }
 
 .feature-card h3 {
@@ -221,6 +219,60 @@
 .feature-card p {
   color: #666;
   line-height: 1.6;
+  font-size: 1rem;
+}
+
+/* Why Choose ScreenAI */
+.why-choose {
+  padding: 4rem 2rem;
+  background: white;
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.benefit-card {
+  text-align: center;
+  padding: 2rem;
+  border-radius: 16px;
+  background: #f8f9fa;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.benefit-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.benefit-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  color: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.benefit-card h3 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.benefit-card p {
+  color: #666;
+  line-height: 1.6;
+  font-size: 1rem;
 }
 
 /* Use Cases */
@@ -253,11 +305,13 @@
 .use-case h3 {
   font-size: 1.5rem;
   margin-bottom: 1rem;
+  color: #333;
 }
 
 .use-case p {
   opacity: 0.9;
   line-height: 1.6;
+  font-size: 1rem;
 }
 
 /* CTA Section */

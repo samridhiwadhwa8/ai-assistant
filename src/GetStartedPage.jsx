@@ -44,73 +44,31 @@ const GetStartedPage = () => {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="how-it-works">
+      {/* Why Choose ScreenAI */}
+      <section className="why-choose">
         <div className="container">
-          <h2 className="section-title">How It Works</h2>
-          <div className="steps">
-            <div className="step">
-              <div className="step-number">1</div>
-              <div className="step-content">
-                <Eye className="step-icon" />
-                <h3>Capture Your Screen</h3>
-                <p>Click the camera icon to capture any application, browser tab, or your entire screen</p>
+          <h2 className="section-title">Why Choose ScreenAI?</h2>
+          <div className="benefits-grid">
+            <div className="benefit-card">
+              <div className="benefit-icon">
+                <Zap />
               </div>
-            </div>
-            <div className="step">
-              <div className="step-number">2</div>
-              <div className="step-content">
-                <Zap className="step-icon" />
-                <h3>Instant Analysis</h3>
-                <p>Our advanced OCR technology extracts text and content from your screen in seconds</p>
-              </div>
-            </div>
-            <div className="step">
-              <div className="step-number">3</div>
-              <div className="step-content">
-                <Brain className="step-icon" />
-                <h3>AI-Powered Insights</h3>
-                <p>Get intelligent responses and analysis powered by advanced LLaMA AI models</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="features">
-        <div className="container">
-          <h2 className="section-title">Powerful Features</h2>
-          <div className="features-grid">
-            <div className="feature-card">
-              <Eye className="feature-icon" />
-              <h3>Screen Capture</h3>
-              <p>Capture any application, browser tab, or entire screen with one click</p>
-            </div>
-            <div className="feature-card">
-              <Zap className="feature-icon" />
               <h3>Lightning Fast</h3>
-              <p>Get results in seconds with our optimized OCR and AI processing</p>
+              <p>Process screenshots and get AI insights in under 3 seconds with our optimized pipeline</p>
             </div>
-            <div className="feature-card">
-              <Mic className="feature-icon" />
-              <h3>Voice Control</h3>
-              <p>Use your voice to ask questions and control the assistant hands-free</p>
+            <div className="benefit-card">
+              <div className="benefit-icon">
+                <Brain />
+              </div>
+              <h3>Smart Intelligence</h3>
+              <p>Advanced LLaMA models understand context and provide meaningful, actionable insights</p>
             </div>
-            <div className="feature-card">
-              <Brain className="feature-icon" />
-              <h3>Smart Analysis</h3>
-              <p>Understand context and provide intelligent insights about your screen content</p>
-            </div>
-            <div className="feature-card">
-              <Shield className="feature-icon" />
+            <div className="benefit-card">
+              <div className="benefit-icon">
+                <Shield />
+              </div>
               <h3>Privacy First</h3>
-              <p>Your screen data is processed securely and never stored permanently</p>
-            </div>
-            <div className="feature-card">
-              <Globe className="feature-icon" />
-              <h3>Cross-Platform</h3>
-              <p>Works with any application on Windows, Mac, and Linux</p>
+              <p>Your data never leaves your device. All processing happens locally and securely</p>
             </div>
           </div>
         </div>

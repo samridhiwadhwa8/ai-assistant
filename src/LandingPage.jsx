@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Zap, Eye, Mic, Brain } from 'lucide-react';
+import { ArrowRight, Zap, Eye, Mic, Brain, Shield, Globe } from 'lucide-react';
 import './LandingPage.css';
 
 const LandingPage = () => {
@@ -88,32 +88,98 @@ const LandingPage = () => {
           <h2 className="section-title">Powerful Features</h2>
           <div className="features-grid">
             <div className="feature-card">
-              <div className="feature-icon">
-                <Eye />
-              </div>
+              <Eye className="feature-icon" style={{
+                width: '60px',
+                height: '60px',
+                color: '#667eea',
+                marginBottom: '1rem'
+              }} />
               <h3>Screen Capture</h3>
               <p>Capture any application, browser tab, or entire screen with one click</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">
-                <Zap />
-              </div>
-              <h3>Instant Analysis</h3>
-              <p>Advanced OCR extracts text and content in seconds, not minutes</p>
+              <Zap className="feature-icon" style={{
+                width: '60px',
+                height: '60px',
+                color: '#667eea',
+                marginBottom: '1rem'
+              }} />
+              <h3>Lightning Fast</h3>
+              <p>Get results in seconds with our optimized OCR and AI processing</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">
-                <Mic />
-              </div>
+              <Mic className="feature-icon" style={{
+                width: '60px',
+                height: '60px',
+                color: '#667eea',
+                marginBottom: '1rem'
+              }} />
               <h3>Voice Control</h3>
               <p>Use your voice to ask questions and control the assistant hands-free</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">
-                <Brain />
+              <Brain className="feature-icon" style={{
+                width: '60px',
+                height: '60px',
+                color: '#667eea',
+                marginBottom: '1rem'
+              }} />
+              <h3>Smart Analysis</h3>
+              <p>Understand context and provide intelligent insights about your screen content</p>
+            </div>
+            <div className="feature-card">
+              <Shield className="feature-icon" style={{
+                width: '60px',
+                height: '60px',
+                color: '#667eea',
+                marginBottom: '1rem'
+              }} />
+              <h3>Privacy First</h3>
+              <p>Your screen data is processed securely and never stored permanently</p>
+            </div>
+            <div className="feature-card">
+              <Globe className="feature-icon" style={{
+                width: '60px',
+                height: '60px',
+                color: '#667eea',
+                marginBottom: '1rem'
+              }} />
+              <h3>Cross-Platform</h3>
+              <p>Works with any application on Windows, Mac, and Linux</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Unique Feature */}
+      <section className="unique-feature">
+        <div className="container">
+          <div className="unique-content">
+            <div className="unique-text">
+              <h2 className="unique-title">One-Click Intelligence</h2>
+              <p className="unique-description">
+                No complex setup, no training required. Just capture your screen and get instant AI-powered insights. 
+                ScreenAI works seamlessly with any application, browser, or system - making you more productive from day one.
+              </p>
+              <div className="unique-highlights">
+                <div className="highlight">
+                  <span className="highlight-number">3</span>
+                  <span className="highlight-text">Second Analysis</span>
+                </div>
+                <div className="highlight">
+                  <span className="highlight-number">100%</span>
+                  <span className="highlight-text">Privacy</span>
+                </div>
+                <div className="highlight">
+                  <span className="highlight-number">∞</span>
+                  <span className="highlight-text">Applications</span>
+                </div>
               </div>
-              <h3>AI Powered</h3>
-              <p>Powered by advanced LLaMA models for intelligent responses</p>
+            </div>
+            <div className="unique-visual">
+              <div className="pulse-circle">
+                <Brain className="pulse-icon" />
+              </div>
             </div>
           </div>
         </div>
