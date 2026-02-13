@@ -104,13 +104,7 @@ The extension requests these permissions:
 browser-extension/
 ├── manifest.json           # Extension manifest
 ├── background.js           # Service worker
-├── floating-ui.html        # Floating assistant UI
-├── floating-ui.js          # Floating assistant logic
-├── floating-ui.css         # Floating assistant styles
-├── popup.html              # Extension popup
 ├── popup.js                # Popup logic
-├── content.js              # Content script (future)
-├── content.css             # Content styles (future)
 ├── icons/                  # Extension icons
 └── README.md               # This file
 ```

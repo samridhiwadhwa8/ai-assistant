@@ -37,13 +37,14 @@ const LlamaChatbot = () => {
     const handleMessage = (event) => {
       // Only accept messages from our parent
       if (event.data && event.data.type === 'SCREENAI_PARENT_URL') {
-        console.log('📨 Received parent URL:', event.data.url);
+        console.log(' Received parent URL:', event.data.url);
         setParentUrl(event.data.url);
         
+      
         // Trigger context update immediately when URL is received
         const context = detectPageContextWithUrl(event.data.url);
         setCurrentContext(context);
-        console.log('🔄 Context updated from parent URL:', context);
+        console.log('Context updated from parent URL:', context);
         
         // Update welcome message if it's the first assistant message
         if (messages.length > 0 && messages[0].role === 'assistant') {
@@ -57,7 +58,7 @@ const LlamaChatbot = () => {
             };
             return newMessages;
           });
-          console.log('📝 Updated welcome message from parent URL:', contextualWelcome);
+          console.log(' Updated welcome message from parent URL:', contextualWelcome);
         }
       }
     };
@@ -69,10 +70,10 @@ const LlamaChatbot = () => {
       try {
         if (window.parent) {
           window.parent.postMessage({ type: 'SCREENAI_REQUEST_URL' }, '*');
-          console.log('📤 Sent URL request to parent');
+          console.log(' Sent URL request to parent');
         }
       } catch (e) {
-        console.log('📤 Cannot send message to parent');
+        console.log(' Cannot send message to parent');
       }
     };
     
@@ -85,7 +86,7 @@ const LlamaChatbot = () => {
       if (!parentUrl && retryCount < 5) {
         requestParentUrl();
         retryCount++;
-        console.log(`📤 Retry ${retryCount}/5: Sent URL request to parent`);
+        console.log(` Retry ${retryCount}/5: Sent URL request to parent`);
       } else {
         clearInterval(retryInterval);
       }
@@ -102,13 +103,13 @@ const LlamaChatbot = () => {
     try {
       const urlObj = new URL(url);
       const hostname = urlObj.hostname.toLowerCase();
-      console.log('🔍 Context Detection with URL - Hostname:', hostname);
+      console.log(' Context Detection with URL - Hostname:', hostname);
       
       // Coding Practice Sites
       if (hostname.includes('leetcode.com') || hostname.includes('hackerrank.com') || 
           hostname.includes('codeforces.com') || hostname.includes('codewars.com') || 
           hostname.includes('geeksforgeeks.org') || hostname.includes('gfg.org')) {
-        console.log('🎯 Detected: Coding practice site');
+        console.log(' Detected: Coding practice site');
         return {
           type: 'coding',
           message: "Practicing coding problems? I can help explain algorithms, debug your solutions, or suggest approaches!"
@@ -118,7 +119,7 @@ const LlamaChatbot = () => {
       // Code Repository Platforms
       if (hostname.includes('github.com') || hostname.includes('gitlab.com') || 
           hostname.includes('bitbucket.org') || hostname.includes('sourceforge.net')) {
-        console.log('🎯 Detected: Code repository platform');
+        console.log(' Detected: Code repository platform');
         return {
           type: 'coding',
           message: "I see you're on a code repository platform. Need help with code review, debugging, or understanding this project?"
@@ -129,7 +130,7 @@ const LlamaChatbot = () => {
       if (hostname.includes('stackoverflow.com') || hostname.includes('stackexchange.com') || 
           hostname.includes('reddit.com') || hostname.includes('quora.com') || 
           hostname.includes('discord.com') || hostname.includes('slack.com')) {
-        console.log('🎯 Detected: Q&A or discussion site');
+        console.log(' Detected: Q&A or discussion site');
         return {
           type: 'qa',
           message: "You're on a discussion platform. Looking for answers or need help understanding solutions?"
@@ -141,7 +142,7 @@ const LlamaChatbot = () => {
           hostname.includes('netflix.com') || hostname.includes('twitch.tv') || 
           hostname.includes('hulu.com') || hostname.includes('disney.com') || 
           hostname.includes('primevideo.com')) {
-        console.log('🎯 Detected: Video site');
+        console.log(' Detected: Video site');
         return {
           type: 'video',
           message: "Watching videos? I can help summarize content or answer questions about what you're watching."
@@ -152,22 +153,10 @@ const LlamaChatbot = () => {
       if (hostname.includes('wikipedia.org') || hostname.includes('docs.') || 
           url.includes('docs.') || hostname.includes('mdn.mozilla.org') || 
           hostname.includes('devdocs.io') || hostname.includes('tutorialspoint.com')) {
-        console.log('🎯 Detected: Documentation site');
+        console.log(' Detected: Documentation site');
         return {
           type: 'documentation',
           message: "Reading documentation. Need help understanding these concepts or finding specific information?"
-        };
-      }
-      
-      // Email and Productivity Sites
-      if (hostname.includes('gmail.com') || hostname.includes('mail.google.com') || 
-          hostname.includes('outlook.com') || hostname.includes('mail.yahoo.com') ||
-          hostname.includes('protonmail.com') || hostname.includes('mail.') ||
-          url.includes('mail.google.com') || url.includes('gmail.com')) {
-        console.log('🎯 Detected: Email/Productivity site');
-        return {
-          type: 'email',
-          message: "Checking email? I can help draft replies, organize your inbox, or suggest quick responses."
         };
       }
       
@@ -176,7 +165,7 @@ const LlamaChatbot = () => {
           hostname.includes('edx.org') || hostname.includes('khanacademy.org') || 
           hostname.includes('pluralsight.com') || hostname.includes('linkedin.com') || 
           hostname.includes('skillshare.com') || hostname.includes('udacity.com')) {
-        console.log('🎯 Detected: E-learning platform');
+        console.log(' Detected: E-learning platform');
         return {
           type: 'learning',
           message: "Learning something new? I can help explain concepts, summarize lectures, or answer questions!"
@@ -184,16 +173,11 @@ const LlamaChatbot = () => {
       }
       
       // Shopping and E-commerce Sites
-      if (hostname.includes('amazon.com') || hostname.includes('amazon.') || hostname.includes('ebay.com') || hostname.includes('ebay.') || 
-          hostname.includes('shop') || hostname.includes('etsy.com') || hostname.includes('etsy.') ||
-          hostname.includes('aliexpress.com') || hostname.includes('aliexpress.') ||
-          hostname.includes('walmart.com') || hostname.includes('walmart.') ||
-          hostname.includes('target.com') || hostname.includes('target.') ||
-          hostname.includes('bestbuy.com') || hostname.includes('bestbuy.') ||
-          hostname.includes('flipkart.com') || hostname.includes('flipkart.') ||
-          hostname.includes('myntra.com') || hostname.includes('myntra.') ||
-          hostname.includes('ajio.com') || hostname.includes('ajio.')) {
-        console.log('🎯 Detected: Shopping site');
+      if (hostname.includes('amazon.com') || hostname.includes('ebay.com') || 
+          hostname.includes('shop') || hostname.includes('etsy.com') || 
+          hostname.includes('aliexpress.com') || hostname.includes('walmart.com') || 
+          hostname.includes('target.com') || hostname.includes('bestbuy.com')) {
+        console.log(' Detected: Shopping site');
         return {
           type: 'shopping',
           message: "Shopping around? I can help compare products or find better deals."
@@ -204,7 +188,7 @@ const LlamaChatbot = () => {
       if (hostname.includes('twitter.com') || hostname.includes('x.com') || 
           hostname.includes('facebook.com') || hostname.includes('instagram.com') || 
           hostname.includes('linkedin.com') || hostname.includes('tiktok.com')) {
-        console.log('🎯 Detected: Social media site');
+        console.log(' Detected: Social media site');
         return {
           type: 'social',
           message: "On social media? I can help analyze content or assist with your social media tasks!"
@@ -215,7 +199,7 @@ const LlamaChatbot = () => {
       if (hostname.includes('cnn.com') || hostname.includes('bbc.com') || 
           hostname.includes('news.') || hostname.includes('reuters.com') || 
           hostname.includes('nytimes.com') || hostname.includes('washingtonpost.com')) {
-        console.log('🎯 Detected: News site');
+        console.log(' Detected: News site');
         return {
           type: 'news',
           message: "Reading news? I can help summarize articles or explain current events!"
@@ -223,14 +207,14 @@ const LlamaChatbot = () => {
       }
       
       // Default for unknown sites
-      console.log('🤷 No specific context detected for:', hostname);
+      console.log(' No specific context detected for:', hostname);
       return {
         type: 'general',
         message: "I'm here to help! I can analyze your screen content and respond to your voice commands."
       };
       
     } catch (error) {
-      console.error('❌ Context detection error:', error);
+      console.error(' Context detection error:', error);
       return {
         type: 'general',
         message: "I'm here to help! I can analyze your screen content and respond to your voice commands."
@@ -262,11 +246,11 @@ const LlamaChatbot = () => {
           if (window.parent && window.parent.location) {
             hostname = window.parent.location.hostname.toLowerCase();
             url = window.parent.location.href.toLowerCase();
-            console.log('🔍 Context Detection - Parent Hostname:', hostname);
-            console.log('🔍 Context Detection - Parent URL:', url);
+            console.log(' Context Detection - Parent Hostname:', hostname);
+            console.log(' Context Detection - Parent URL:', url);
           }
         } catch (e) {
-          console.log('🔍 Context Detection - Cannot access parent window directly');
+          console.log(' Context Detection - Cannot access parent window directly');
           
           // Use URL from postMessage if available
           if (parentUrl) {
@@ -274,14 +258,14 @@ const LlamaChatbot = () => {
               const urlObj = new URL(parentUrl);
               hostname = urlObj.hostname.toLowerCase();
               url = parentUrl.toLowerCase();
-              console.log('🔍 Context Detection - Parent URL from postMessage:', hostname);
+              console.log(' Context Detection - Parent URL from postMessage:', hostname);
             } catch (parseError) {
-              console.log('🔍 Context Detection - Invalid parent URL from postMessage');
+              console.log(' Context Detection - Invalid parent URL from postMessage');
             }
           }
           
           if (!hostname) {
-            console.log('🔍 Context Detection - No parent URL available');
+            console.log(' Context Detection - No parent URL available');
             // Return generic context when we can't access parent
             return {
               type: 'general',
@@ -294,50 +278,42 @@ const LlamaChatbot = () => {
       
       // Detect different contexts
       if (hostname.includes('github.com') || hostname.includes('gitlab.com')) {
-        console.log('🎯 Detected: Coding platform');
+        console.log(' Detected: Coding platform');
         return {
           type: 'coding',
           message: "I see you're on a coding platform. Need help with code review, debugging, or understanding this repository?",
           suggestions: ['Explain this code', 'Help debug', 'Review this PR', 'Suggest improvements']
         };
       } else if (hostname.includes('stackoverflow.com') || hostname.includes('stackexchange.com')) {
-        console.log('🎯 Detected: Q&A site');
+        console.log(' Detected: Q&A site');
         return {
           type: 'qa',
           message: "You're on a Q&A site. Looking for answers or need help understanding a solution?",
           suggestions: ['Explain this answer', 'Find similar solutions', 'Help with this problem']
         };
       } else if (hostname.includes('youtube.com') || hostname.includes('vimeo.com')) {
-        console.log('🎯 Detected: Video site');
+        console.log(' Detected: Video site');
         return {
           type: 'video',
           message: "Watching a video? I can help summarize the content or answer questions about it.",
           suggestions: ['Summarize this video', 'Explain this topic', 'Find related content']
         };
       } else if (hostname.includes('wikipedia.org') || hostname.includes('docs.') || url.includes('docs.')) {
-        console.log('🎯 Detected: Documentation');
+        console.log(' Detected: Documentation');
         return {
           type: 'documentation',
           message: "Reading documentation. Need help understanding these concepts or finding specific information?",
           suggestions: ['Explain this concept', 'Find examples', 'Simplify this explanation']
         };
-      } else if (hostname.includes('amazon.com') || hostname.includes('amazon.') || hostname.includes('ebay.com') || hostname.includes('ebay.') || 
-               hostname.includes('shop') || hostname.includes('etsy.com') || hostname.includes('etsy.') ||
-               hostname.includes('aliexpress.com') || hostname.includes('aliexpress.') ||
-               hostname.includes('walmart.com') || hostname.includes('walmart.') ||
-               hostname.includes('target.com') || hostname.includes('target.') ||
-               hostname.includes('bestbuy.com') || hostname.includes('bestbuy.') ||
-               hostname.includes('flipkart.com') || hostname.includes('flipkart.') ||
-               hostname.includes('myntra.com') || hostname.includes('myntra.') ||
-               hostname.includes('ajio.com') || hostname.includes('ajio.')) {
-        console.log('🎯 Detected: Shopping');
+      } else if (hostname.includes('amazon.com') || hostname.includes('ebay.com') || hostname.includes('shop')) {
+        console.log(' Detected: Shopping');
         return {
           type: 'shopping',
           message: "Shopping around? I can help compare products or find better deals.",
           suggestions: ['Compare products', 'Find reviews', 'Suggest alternatives']
         };
       } else if (hostname) {
-        console.log('🤷 No specific context detected for:', hostname);
+        console.log(' No specific context detected for:', hostname);
         // Return generic context for unknown sites
         return {
           type: 'general',
@@ -346,7 +322,7 @@ const LlamaChatbot = () => {
         };
       }
     } catch (error) {
-      console.error('❌ Context detection error:', error);
+      console.error(' Context detection error:', error);
     }
     return {
       type: 'general',
@@ -372,7 +348,7 @@ const LlamaChatbot = () => {
     const updateContext = () => {
       const context = detectPageContext();
       setCurrentContext(context);
-      console.log('🔄 Context updated:', context);
+      console.log(' Context updated:', context);
       
       // Always update welcome message if it's the first assistant message
       if (messages.length > 0 && messages[0].role === 'assistant') {
@@ -386,7 +362,7 @@ const LlamaChatbot = () => {
           };
           return newMessages;
         });
-        console.log('📝 Updated welcome message:', contextualWelcome);
+        console.log(' Updated welcome message:', contextualWelcome);
       }
     };
 
@@ -405,270 +381,6 @@ const LlamaChatbot = () => {
       window.removeEventListener('hashchange', handleUrlChange);
     };
   }, [userName]);
-
-  // ===== AUTONOMY LAYER: Proactive Suggestions =====
-  const [lastAutonomySuggestion, setLastAutonomySuggestion] = useState(null);
-  const [sessionStartTime] = useState(Date.now());
-  const [userActivityTime, setUserActivityTime] = useState(Date.now());
-
-  // Autonomy rule engine
-  const checkAutonomyRules = (context, url) => {
-    const currentTime = Date.now();
-    const sessionDuration = currentTime - sessionStartTime;
-    const timeSinceLastActivity = currentTime - userActivityTime;
-    
-    // Rule 1: Long coding session - suggest break
-    if (context?.type === 'coding' && sessionDuration > 2 * 60 * 60 * 1000) { // 2 hours
-      return {
-        type: 'break_suggestion',
-        priority: 'high',
-        content: "You've been coding for a while. Time for a quick break? I can suggest some stretches or we can review your progress.",
-        action: 'suggest_break'
-      };
-    }
-    
-    // Rule 2: LeetCode progress analysis
-    if (url?.includes('leetcode.com') && sessionDuration > 30 * 60 * 1000) { // 30 minutes
-      return {
-        type: 'progress_analysis',
-        priority: 'medium',
-        content: "Want me to analyze your LeetCode progress? I can track your problem-solving patterns and suggest areas to improve.",
-        action: 'analyze_progress'
-      };
-    }
-    
-    // Rule 3: YouTube content summary
-    if (context?.type === 'video' && url?.includes('youtube.com')) {
-      return {
-        type: 'content_summary',
-        priority: 'low',
-        content: "Watching a video? I can summarize the content or extract key points for you. Just say 'summarize this video'!",
-        action: 'offer_summary'
-      };
-    }
-    
-    // Rule 4: Gmail productivity
-    if (url?.includes('gmail.com') || url?.includes('mail.google.com')) {
-      return {
-        type: 'productivity_helper',
-        priority: 'medium',
-        content: "In your inbox? I can help draft replies, organize emails, or suggest quick responses. Want me to scan for important messages?",
-        action: 'help_email'
-      };
-    }
-    
-    // Rule 5: Error page assistance
-    if (url?.includes('error') || url?.includes('404') || url?.includes('500')) {
-      return {
-        type: 'error_assistance',
-        priority: 'high',
-        content: "I see an error page. I can help diagnose this issue or suggest fixes. Want me to analyze what went wrong?",
-        action: 'fix_error'
-      };
-    }
-    
-    // Rule 6: Documentation deep dive
-    if (context?.type === 'documentation' && sessionDuration > 15 * 60 * 1000) { // 15 minutes
-      return {
-        type: 'learning_assistance',
-        priority: 'medium',
-        content: "Reading documentation for a while. Need help understanding concepts? I can explain complex topics or find examples.",
-        action: 'explain_concepts'
-      };
-    }
-    
-    // Rule 7: Shopping comparison
-    if (context?.type === 'shopping') {
-      console.log('🛒 Shopping helper rule triggered for URL:', url);
-      return {
-        type: 'shopping_helper',
-        priority: 'low',
-        content: "Shopping around? I can compare products, find better deals, or check reviews. Just show me what you're looking at.",
-        action: 'compare_products'
-      };
-    }
-    
-    return null; // No autonomy trigger
-  };
-
-  // Autonomy suggestion manager
-  const makeAutonomousSuggestion = (suggestion) => {
-    console.log('🤖 makeAutonomousSuggestion called with:', suggestion);
-    
-    // Don't suggest if user was recently active (avoid being annoying)
-    const timeSinceLastActivity = Date.now() - userActivityTime;
-    console.log('⏰ Time since last activity:', timeSinceLastActivity, 'ms');
-    if (timeSinceLastActivity < 2 * 60 * 1000) { // 2 minutes grace period
-      console.log('❌ Autonomy blocked: User too recently active');
-      return; // 2 minutes grace period
-    }
-    
-    // Don't suggest same thing repeatedly
-    if (lastAutonomySuggestion?.type === suggestion.type) {
-      console.log('❌ Autonomy blocked: Same suggestion type already used');
-      return;
-    }
-    
-    console.log('✅ Autonomy suggestion approved, adding to chat...');
-    
-    // Add the autonomous suggestion as a system message
-    const autonomyMessage = {
-      role: "assistant",
-      content: `Autonomous Suggestion: ${suggestion.content}`,
-      timestamp: new Date(),
-      isAutonomy: true,
-      autonomyAction: suggestion.action,
-      priority: suggestion.priority
-    };
-    
-    console.log('📝 Adding autonomy message:', autonomyMessage);
-    setMessages(prev => {
-      console.log('📨 Current messages count:', prev.length);
-      const newMessages = [...prev, autonomyMessage];
-      console.log('📨 New messages count:', newMessages.length);
-      return newMessages;
-    });
-    setLastAutonomySuggestion(suggestion);
-    
-    console.log('🤖 Autonomy triggered successfully:', suggestion);
-  };
-
-  // Enhanced context update with autonomy
-  useEffect(() => {
-    const updateContextWithAutonomy = () => {
-      const context = detectPageContext();
-      setCurrentContext(context);
-      console.log('🔄 Context updated:', context);
-      
-      // Check autonomy rules
-      const autonomySuggestion = checkAutonomyRules(context, parentUrl);
-      if (autonomySuggestion) {
-        // Delay suggestion to feel natural, not immediate
-        setTimeout(() => {
-          makeAutonomousSuggestion(autonomySuggestion);
-        }, 3000 + Math.random() * 5000); // 3-8 seconds delay
-      }
-      
-      // Always update welcome message if it's the first assistant message
-      if (messages.length > 0 && messages[0].role === 'assistant') {
-        const contextualWelcome = getContextualWelcome(userName);
-        setMessages(prev => {
-          const newMessages = [...prev];
-          newMessages[0] = {
-            role: "assistant",
-            content: contextualWelcome,
-            timestamp: new Date()
-          };
-          return newMessages;
-        });
-        console.log('📝 Updated welcome message:', contextualWelcome);
-      }
-    };
-
-    // Initial context update
-    updateContextWithAutonomy();
-    
-    // Listen for URL changes (for single-page apps)
-    const handleUrlChange = () => {
-      setTimeout(updateContextWithAutonomy, 1000); // Delay to ensure URL is updated
-    };
-
-    window.addEventListener('popstate', handleUrlChange);
-    window.addEventListener('hashchange', handleUrlChange);
-    
-    return () => {
-      window.removeEventListener('popstate', handleUrlChange);
-      window.removeEventListener('hashchange', handleUrlChange);
-    };
-  }, [userName, parentUrl]);
-
-  // Continuous context checking
-  useEffect(() => {
-    const contextInterval = setInterval(() => {
-      const context = detectPageContext();
-      if (context && context.type !== currentContext?.type) {
-        console.log('🔄 Context updated:', context);
-        setCurrentContext(context);
-      }
-    }, 5000); // Check every 5 seconds
-
-    return () => {
-      clearInterval(contextInterval);
-      console.log('🔄 Context interval cleared');
-    };
-  }, []);
-
-  // Continuous autonomy checking loop
-  useEffect(() => {
-    const autonomyInterval = setInterval(() => {
-      const context = detectPageContext();
-      const autonomySuggestion = checkAutonomyRules(context, parentUrl);
-      if (autonomySuggestion) {
-        console.log('🤖 Continuous autonomy check - suggestion found:', autonomySuggestion);
-        
-        // Don't suggest if user was recently active (avoid being annoying)
-        const timeSinceLastActivity = Date.now() - userActivityTime;
-        console.log('⏰ Time since last activity:', timeSinceLastActivity, 'ms');
-        if (timeSinceLastActivity < 10 * 60 * 1000) { // 10 minutes grace period (much longer)
-          console.log('❌ Autonomy blocked: User too recently active');
-          return; // 10 minutes grace period
-        }
-        
-        // Don't suggest same thing repeatedly
-        if (lastAutonomySuggestion?.type === autonomySuggestion.type) {
-          console.log('❌ Autonomy blocked: Same suggestion type already used');
-          return;
-        }
-        
-        makeAutonomousSuggestion(autonomySuggestion);
-      }
-    }, 120 * 1000); // Check every 2 minutes (much slower)
-
-    return () => {
-      clearInterval(autonomyInterval);
-      console.log('🛑 Autonomy interval cleared');
-    };
-  }, [parentUrl]);
-
-  // Track user activity for autonomy timing
-  useEffect(() => {
-    const trackActivity = (event) => {
-      // Don't track activity if it's within the chat interface
-      const chatElement = document.querySelector('.chat-interface, .chat-container, [class*="chat"]');
-      if (chatElement && chatElement.contains(event.target)) {
-        console.log('🚫 Ignoring chat interaction:', event.type);
-        return; // Ignore chat interactions
-      }
-      
-      // Only track meaningful activity, not every scroll
-      if (event.type === 'scroll') {
-        // Only track scroll if it's significant (page scroll, not small movements)
-        const scrollThreshold = 100; // pixels
-        if (window.scrollY < scrollThreshold) {
-          return; // Ignore small scrolls near top
-        }
-      }
-      
-      // Update activity time for any meaningful interaction
-      setUserActivityTime(Date.now());
-      console.log('👆 User activity tracked:', event.type, 'at', new Date().toLocaleTimeString());
-    };
-    
-    // Track meaningful user interactions (but exclude chat and excessive scrolling)
-    window.addEventListener('click', trackActivity);
-    window.addEventListener('keydown', trackActivity);
-    window.addEventListener('scroll', trackActivity);
-    window.addEventListener('mousemove', trackActivity); // Add mouse movement tracking
-    
-    return () => {
-      window.removeEventListener('click', trackActivity);
-      window.removeEventListener('keydown', trackActivity);
-      window.removeEventListener('scroll', trackActivity);
-      window.removeEventListener('mousemove', trackActivity);
-    };
-  }, []);
-
-  // ===== END AUTONOMY LAYER =====
 
   // Persistence functions
   const saveChatHistory = (messagesToSave) => {
@@ -697,29 +409,18 @@ const LlamaChatbot = () => {
 
   const clearAllMemory = () => {
     try {
-      // Stop any ongoing requests
-      if (abortController) {
-        abortController.abort();
-        setAbortController(null);
-      }
-      
-      // Stop recording if active
-      if (isRecording) {
-        stopRecording();
-      }
-      
-      // Reset conversation but keep user data
+      localStorage.removeItem('chatHistory');
+      localStorage.removeItem('userPreferences');
+      localStorage.removeItem('userName');
       setMessages([{
         role: "assistant",
-        content: "Conversation cleared! How can I help you today?",
+        content: "Memory cleared! I've forgotten everything. How can I help you today?",
         timestamp: new Date()
       }]);
-      setIsTyping(false);
-      setInput('');
-      
-      console.log('🧹 Conversation cleared and ongoing requests stopped');
+      setUserPreferences({});
+      setUserName('');
     } catch (error) {
-      console.error('Failed to clear conversation:', error);
+      console.error('Failed to clear memory:', error);
     }
   };
 
@@ -756,13 +457,11 @@ const LlamaChatbot = () => {
     setMessages(prev => [...prev, userMessage]);
     
     // Check if user is introducing their name
-    let isNameIntroduction = false;
     if (!userName && (input.toLowerCase().includes('my name is') || input.toLowerCase().includes('i am') || input.toLowerCase().includes('call me'))) {
       const nameMatch = input.match(/(?:my name is|i am|call me)\s+([a-zA-Z]+)/i);
       if (nameMatch && nameMatch[1]) {
         const extractedName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
         setUserName(extractedName);
-        isNameIntroduction = true;
         
         // Add acknowledgment message
         setTimeout(() => {
@@ -776,23 +475,20 @@ const LlamaChatbot = () => {
     }
     
     setInput("");
-    
-    // Only make API call if this isn't just a name introduction
-    if (!isNameIntroduction) {
-      setIsTyping(true);
+    setIsTyping(true);
 
     try {
       const params = new URLSearchParams({ question: input });
       const controller = new AbortController();
       setAbortController(controller);
       
-      const response = await fetch(`http://localhost:8000/chat`, {
-        method: 'POST',
+      const response = await fetch(`http://localhost:8000/chat?${params}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'text/event-stream',
           'X-Session-ID': sessionId || undefined
         },
-        body: `message=${encodeURIComponent(input)}`
+        signal: controller.signal
       });
 
       const newSessionId = response.headers.get('X-Session-ID');
@@ -806,126 +502,57 @@ const LlamaChatbot = () => {
         throw new Error(errorData.detail || `Server responded with ${response.status}`);
       }
 
-      // Handle JSON response from POST endpoint
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('text/event-stream')) {
-        // Handle streaming response (from SCREEN intent)
-        console.log('Handling streaming response');
+      // Add an initial assistant message for streaming
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+        isStreaming: true
+      }]);
+
+      // Process the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
         
-        // Add streaming message placeholder
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: "",
-          timestamp: new Date(),
-          isStreaming: true
-        }]);
-
-        // Process the stream
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
           
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            
-            try {
-              const data = JSON.parse(line.substring(6).trim());
-              if (data.chunk) {
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastMessage = { ...newMessages[newMessages.length - 1] };
-                  if (lastMessage.role === 'assistant') {
-                    lastMessage.content += data.chunk;
-                  }
-                  return [...newMessages.slice(0, -1), lastMessage];
-                });
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
+          try {
+            const data = JSON.parse(line.substring(6).trim());
+            if (data.chunk) {
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = { ...newMessages[newMessages.length - 1] };
+                if (lastMessage.role === 'assistant') {
+                  lastMessage.content += data.chunk;
+                }
+                return [...newMessages.slice(0, -1), lastMessage];
+              });
             }
-          }
-        }
-
-        // Mark streaming as complete
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessage = { ...newMessages[newMessages.length - 1] };
-          if (lastMessage.role === 'assistant') {
-            lastMessage.isStreaming = false;
-          }
-          return [...newMessages.slice(0, -1), lastMessage];
-        });
-        
-      } else {
-        // Handle JSON response - convert to streaming for word-by-word display
-        console.log('Handling JSON response - converting to streaming');
-        
-        // Add streaming message placeholder
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: "",
-          timestamp: new Date(),
-          isStreaming: true
-        }]);
-        
-        const data = await response.json();
-        console.log('Chat response:', data);
-        const responseText = data.response || "Sorry, I couldn't process that.";
-        
-        // Simulate word-by-word streaming with reduced speed
-        const words = responseText.split(' ');
-        let currentContent = '';
-        
-        for (let i = 0; i < words.length; i++) {
-          currentContent += (i > 0 ? ' ' : '') + words[i];
-          setMessages(prev => {
-            const newMessages = [...prev];
-            const lastMessage = { ...newMessages[newMessages.length - 1] };
-            if (lastMessage.role === 'assistant') {
-              lastMessage.content = currentContent;
-            }
-            return [...newMessages.slice(0, -1), lastMessage];
-          });
-          
-          // Reduced delay between words for slower, more natural typing
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        // Mark streaming as complete
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessage = { ...newMessages[newMessages.length - 1] };
-          if (lastMessage.role === 'assistant') {
-            lastMessage.isStreaming = false;
-          }
-          return [...newMessages.slice(0, -1), lastMessage];
-        });
-        
-        // Auto-start voice recording if voice mode is activated
-        if (data.voice_mode && data.intent === 'VOICE') {
-          console.log('🎤 Auto-starting voice recording...');
-          setTimeout(() => {
-            startRecording();
-          }, 1000);
-        }
-        
-        // Auto-stop voice recording if voice mode is deactivated
-        if (data.intent === 'VOICE_DEACTIVATE' && data.voice_mode === false) {
-          console.log('🔇 Auto-stopping voice recording...');
-          if (isRecording) {
-            stopRecording();
+          } catch (e) {
+            console.error('Error parsing chunk:', e);
           }
         }
       }
+
+      // Mark streaming as complete
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = { ...newMessages[newMessages.length - 1] };
+        if (lastMessage.role === 'assistant') {
+          lastMessage.isStreaming = false;
+        }
+        return [...newMessages.slice(0, -1), lastMessage];
+      });
       
     } catch (error) {
       console.error('Error sending message:', error);
@@ -933,14 +560,13 @@ const LlamaChatbot = () => {
         ...prev,
         {
           role: "assistant",
-          content: `❌ Error: ${error.message}`,
+          content: `Error: ${error.message}`,
           timestamp: new Date()
         }
       ]);
     } finally {
       setIsTyping(false);
       setAbortController(null);
-    }
     }
   };
 
@@ -1020,7 +646,7 @@ const LlamaChatbot = () => {
       console.error('Screen analysis error:', error);
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "❌ Error: " + error.message,
+        content: " Error: " + error.message,
         timestamp: new Date()
       }]);
       setIsTyping(false);
@@ -1033,78 +659,16 @@ const LlamaChatbot = () => {
   };
 
   useEffect(() => {
-    console.log('🚀 REACT: Exposing functions to window...');
+    console.log(' REACT: Exposing functions to window...');
     window.captureScreen = captureScreen;
     window.startRecording = startRecording;
     window.stopRecording = stopRecording;
     window.analyzeScreen = analyzeScreen;
     window.reactCaptureScreen = captureScreen;
     window.reactAnalyzeScreen = analyzeScreen;
+    console.log(' REACT: Functions exposed to window');
     
-    // Expose test functions for autonomy debugging
-    window.testContextDetection = (url) => {
-      const context = detectPageContextWithUrl(url);
-      console.log('🧪 Test Context Detection:', url, '→', context);
-      return context;
-    };
-    
-    window.testAutonomyRules = (url) => {
-      const context = detectPageContextWithUrl(url);
-      const suggestion = checkAutonomyRules(context, url);
-      console.log('🤖 Test Autonomy Rules:', url, '→', suggestion);
-      return suggestion;
-    };
-    
-    // Reset autonomy state for testing
-    window.resetAutonomy = () => {
-      setLastAutonomySuggestion(null);
-      setUserActivityTime(Date.now() - 10 * 60 * 1000); // Set to 10 minutes ago
-      console.log('🔄 Autonomy state reset - ready for testing');
-    };
-    
-    // Force autonomy (bypass all restrictions)
-    window.forceAutonomy = (url) => {
-      const context = detectPageContextWithUrl(url);
-      const suggestion = checkAutonomyRules(context, url);
-      if (suggestion) {
-        console.log('🚀 Forcing autonomy (bypassing restrictions):', suggestion);
-        // Add directly to messages without checks
-        const autonomyMessage = {
-          role: "assistant",
-          content: `Autonomous Suggestion: ${suggestion.content}`,
-          timestamp: new Date(),
-          isAutonomy: true,
-          autonomyAction: suggestion.action,
-          priority: suggestion.priority
-        };
-        setMessages(prev => [...prev, autonomyMessage]);
-        setLastAutonomySuggestion(suggestion);
-        return suggestion;
-      } else {
-        console.log('❌ No autonomy rule found for:', url);
-        return null;
-      }
-    };
-    
-    // Manual trigger for autonomy suggestions (bypasses timing restrictions)
-    window.triggerAutonomy = (url) => {
-      const context = detectPageContextWithUrl(url);
-      const suggestion = checkAutonomyRules(context, url);
-      if (suggestion) {
-        console.log('🚀 Manually triggering autonomy:', suggestion);
-        makeAutonomousSuggestion(suggestion);
-        return suggestion;
-      } else {
-        console.log('❌ No autonomy rule found for:', url);
-        return null;
-      }
-    };
-    
-    console.log('� REACT: Functions exposed to window');
-    console.log('🧪 Test functions available: window.testContextDetection(), window.testAutonomyRules()');
-    console.log('� Autonomy functions available: window.resetAutonomy(), window.triggerAutonomy()');
-    
-    console.log('🚀 UIUX: Is iframe mode:', isIframe);
+    console.log(' UIUX: Is iframe mode:', isIframe);
   }, []);
 
   const startRecording = async () => {
@@ -1141,7 +705,7 @@ const LlamaChatbot = () => {
         ...prev,
         {
           role: "assistant",
-          content: "❌ Error: Could not access microphone. Please check your permissions.",
+          content: " Error: Could not access microphone. Please check your permissions.",
           timestamp: new Date()
         }
       ]);
@@ -1248,13 +812,25 @@ const LlamaChatbot = () => {
             return [...newMessages.slice(0, -1), lastMessage];
           });
         }
-      }
-    } catch (streamError) {
-      if (streamError.name === 'AbortError') {
-        console.log('Stream was aborted (timeout or user cancelled)');
       } else {
-        console.error('Stream error:', streamError);
+        // Handle non-streaming response
+        const data = await response.json();
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: data.text || "No text was found in the audio.",
+          timestamp: new Date()
+        }]);
       }
+    } catch (error) {
+      console.error('Error sending voice to server:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "assistant",
+          content: ` Error: ${error.message}`,
+          timestamp: new Date()
+        }
+      ]);
     } finally {
       setIsTyping(false);
     }
@@ -1262,74 +838,61 @@ const LlamaChatbot = () => {
 
   const captureScreen = async () => {
     try {
-      console.log('🚀 CAPTURE: Starting screen capture...');
+      console.log(' CAPTURE: Starting screen capture...');
       setIsTyping(true);
 
-      console.log('🚀 CAPTURE: Requesting screen sharing...');
+      console.log(' CAPTURE: Requesting screen sharing...');
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 1 },
         audio: false
       });
-      console.log('🚀 CAPTURE: Screen sharing granted');
+      console.log(' CAPTURE: Screen sharing granted');
 
       const track = stream.getVideoTracks()[0];
-      console.log('🚀 CAPTURE: Got video track');
+      console.log(' CAPTURE: Got video track');
       
       const imageCapture = new ImageCapture(track);
-      console.log('🚀 CAPTURE: ImageCapture created');
+      console.log(' CAPTURE: ImageCapture created');
       
       const bitmap = await imageCapture.grabFrame();
-      console.log('🚀 CAPTURE: Frame captured, bitmap size:', bitmap.width, 'x', bitmap.height);
+      console.log(' CAPTURE: Frame captured, bitmap size:', bitmap.width, 'x', bitmap.height);
 
       const canvas = document.createElement("canvas");
       canvas.width = bitmap.width;
       canvas.height = bitmap.height;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(bitmap, 0, 0);
-      console.log('🚀 CAPTURE: Canvas created and drawn');
+      console.log(' CAPTURE: Canvas created and drawn');
 
       const blob = await new Promise(resolve =>
         canvas.toBlob(resolve, "image/png")
       );
-      console.log('🚀 CAPTURE: Blob created, size:', blob.size, 'bytes');
+      console.log(' CAPTURE: Blob created, size:', blob.size, 'bytes');
 
       track.stop(); // stop screen sharing immediately
-      console.log('🚀 CAPTURE: Screen sharing stopped');
+      console.log(' CAPTURE: Screen sharing stopped');
 
       const formData = new FormData();
       formData.append("file", blob);
-      console.log('🚀 CAPTURE: FormData created');
+      console.log(' CAPTURE: FormData created');
 
-      // Use the chat endpoint with image for AI analysis like the analyze button
-      console.log('🚀 CAPTURE: Sending to chat endpoint with image for AI analysis...');
-      
-      // Convert blob to base64
-      const base64Image = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result.split(',')[1]);
-        reader.readAsDataURL(blob);
-      });
-      
-      // Send to chat endpoint with image
-      const response = await fetch('http://localhost:8000/chat', {
-        method: 'POST',
+      // Use the analyze-screen endpoint with file upload for intelligent analysis
+      console.log(' CAPTURE: Sending to analyze-screen endpoint with file...');
+      const response = await fetch("http://localhost:8000/process-screenshot?question=What's in this image?", {
+        method: "POST",
+        body: formData,
         headers: {
-          'Content-Type': 'application/json',
           'X-Session-ID': sessionId || undefined
-        },
-        body: JSON.stringify({
-          message: "Analyze this image in detail",
-          image: base64Image
-        })
+        }
       });
 
-      console.log('🚀 CAPTURE: Response received, status:', response.status);
+      console.log(' CAPTURE: Response received, status:', response.status);
 
       const newSessionId = response.headers.get('X-Session-ID');
       if (newSessionId && newSessionId !== sessionId) {
         setSessionId(newSessionId);
         localStorage.setItem('sessionId', newSessionId);
-        console.log('🚀 CAPTURE: Session ID updated');
+        console.log(' CAPTURE: Session ID updated');
       }
 
       if (!response.ok) {
@@ -1337,110 +900,20 @@ const LlamaChatbot = () => {
         throw new Error(errorData.detail || `Server responded with ${response.status}`);
       }
 
-      // Handle chat response with streaming
-      const contentType = response.headers.get('content-type');
+      // Handle JSON response (text only, no AI analysis)
+      const data = await response.json();
       
-      if (contentType && contentType.includes('text/event-stream')) {
-        // Handle streaming response
-        console.log('🚀 CAPTURE: Handling streaming response');
-        
-        // Add streaming message placeholder
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: "",
-          timestamp: new Date(),
-          isStreaming: true
-        }]);
-
-        // Process the stream
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            
-            try {
-              const data = JSON.parse(line.substring(6).trim());
-              if (data.chunk) {
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastMessage = { ...newMessages[newMessages.length - 1] };
-                  if (lastMessage.role === 'assistant') {
-                    lastMessage.content += data.chunk;
-                  }
-                  return [...newMessages.slice(0, -1), lastMessage];
-                });
-              }
-            } catch (e) {
-              console.error('Error parsing chunk:', e);
-            }
+      setMessages(prev => {
+        const newMessages = prev.slice(0, -1);
+        return [
+          ...newMessages,
+          {
+            role: "assistant",
+            content: data.text || "No text was found in the image.",
+            timestamp: new Date(),
           }
-        }
-
-        // Mark streaming as complete
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessage = { ...newMessages[newMessages.length - 1] };
-          if (lastMessage.role === 'assistant') {
-            lastMessage.isStreaming = false;
-          }
-          return [...newMessages.slice(0, -1), lastMessage];
-        });
-        
-      } else {
-        // Handle JSON response - convert to streaming for word-by-word display
-        console.log('🚀 CAPTURE: Handling JSON response - converting to streaming');
-        
-        // Add streaming message placeholder
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: "",
-          timestamp: new Date(),
-          isStreaming: true
-        }]);
-        
-        const data = await response.json();
-        console.log('🚀 CAPTURE: Chat response:', data);
-        const responseText = data.response || "Sorry, I couldn't analyze that image.";
-        
-        // Simulate word-by-word streaming with reduced speed
-        const words = responseText.split(' ');
-        let currentContent = '';
-        
-        for (let i = 0; i < words.length; i++) {
-          currentContent += (i > 0 ? ' ' : '') + words[i];
-          setMessages(prev => {
-            const newMessages = [...prev];
-            const lastMessage = { ...newMessages[newMessages.length - 1] };
-            if (lastMessage.role === 'assistant') {
-              lastMessage.content = currentContent;
-            }
-            return [...newMessages.slice(0, -1), lastMessage];
-          });
-          
-          // Reduced delay between words for slower, more natural typing
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        // Mark streaming as complete
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessage = { ...newMessages[newMessages.length - 1] };
-          if (lastMessage.role === 'assistant') {
-            lastMessage.isStreaming = false;
-          }
-          return [...newMessages.slice(0, -1), lastMessage];
-        });
-      }
+        ];
+      });
 
     } catch (error) {
       console.error('Error processing file:', error);
@@ -1448,7 +921,7 @@ const LlamaChatbot = () => {
         ...prev,
         {
           role: "assistant",
-          content: `❌ Error processing file: ${error.message}`,
+          content: ` Error processing file: ${error.message}`,
           timestamp: new Date()
         }
       ]);
@@ -1461,14 +934,13 @@ const LlamaChatbot = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-    const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+const handleKeyPress = (e) => {
+if (e.key === 'Enter' && !e.shiftKey) {
+  e.preventDefault();
+  handleSend();
+}};
 
-  const isIframe = window.self !== window.top;
+const isIframe = window.self !== window.top;
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -1499,7 +971,7 @@ const LlamaChatbot = () => {
     } catch (error) {
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: `❌ Error processing file: ${error.message}`,
+        content: ` Error processing file: ${error.message}`,
         timestamp: new Date()
       }]);
     } finally {
@@ -1523,6 +995,7 @@ const LlamaChatbot = () => {
   const textStyle = isIframe 
     ? {}
     : {};
+
 
   return (
     <div 
@@ -1627,6 +1100,9 @@ const LlamaChatbot = () => {
                 }`}
                 style={{
                   background: 'rgba(0, 0, 0, 0.08)',
+                  backdropFilter: 'blur(6px) brightness(0.9)',
+                  WebkitBackdropFilter: 'blur(6px) brightness(0.9)',
+                  border: '1px solid rgba(255,255,255,0.08)',
                   borderRadius: '12px'
                 }}
               >
@@ -1650,31 +1126,10 @@ const LlamaChatbot = () => {
             </div>
           </div>
         ))}
-        
-        {/* Typing indicator when processing but no streaming message yet */}
-        {isTyping && !messages.some(msg => msg.isStreaming) && (
-          <div className="flex justify-start">
-            <div
-              className="max-w-3xl rounded-xl p-4 text-white rounded-bl-none"
-              style={{
-                background: 'rgba(0, 0, 0, 0.08)',
-                borderRadius: '12px'
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex space-x-1">
-                  <div className="w-1 h-1 bg-white/60 rounded-full animate-bounce"></div>
-                  <div className="w-1 h-1 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-1 h-1 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef}></div>
+        <div ref={messagesEndRef} />
       </div>
       )}
-      
+
       {!isMinimized && (
         <div className="p-4" style={{background: 'rgba(0, 0, 0, 0.08)', backdropFilter: 'blur(6px) brightness(0.9)', WebkitBackdropFilter: 'blur(6px) brightness(0.9)', borderTop: 'none'}}>
         <div className="flex gap-2 mb-3">
@@ -1778,6 +1233,6 @@ const LlamaChatbot = () => {
       )}
     </div>
   );
-}
+};
 
 export default LlamaChatbot;
