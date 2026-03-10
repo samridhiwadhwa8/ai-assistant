@@ -1,244 +1,116 @@
-**Multimodal Local LLM AI Assistant**
+# Multimodal Local LLM AI Assistant
 
-A privacy-focused multimodal AI assistant that runs locally using Ollama.
-Supports voice input, screen OCR, contextual chat, and browser extension integration.
+A **privacy-focused multimodal AI assistant** that runs locally using a large language model.  
+The system supports **voice interaction, screen understanding, and contextual chat** while keeping all AI processing on the user’s machine.
 
-Runs fully locally without external APIs.
+This project explores **local AI agents, multimodal interaction pipelines, and real-time AI response streaming** without relying on external AI APIs.
 
-**Features**
+---
 
-Local LLM using Ollama
+## Overview
 
-Voice Interaction
+The assistant integrates multiple input modalities and routes them through a local AI processing pipeline.  
+It is designed to demonstrate **practical system design for local AI assistants**, including browser integration and modular AI tooling.
 
-Screen OCR
+The system allows users to interact with a locally running language model using:
 
-Context-aware Chat
+- Voice input
+- Screen text extraction (OCR)
+- Chat interface
+- Browser extension integration
 
-Real-time Streaming (SSE)
+All inference is performed **locally**.
 
-Browser Extension Support
+---
 
-Autonomous Context Awareness
+## Key Capabilities
 
-Local Memory
+- Local LLM execution
+- Voice interaction pipeline
+- Screen text extraction (OCR)
+- Context-aware responses
+- Streaming AI responses
+- Browser extension interface
+- Privacy-focused local processing
 
-Privacy Focused (No API Keys)
+---
 
-**Tech Stack**
+## Technology Stack
 
-Frontend
+**Backend**
 
-React
+- Python
+- FastAPI
+- Streaming response architecture
 
-TailwindCSS
+**AI Processing**
 
-Backend
+- Local LLM runtime
+- Speech recognition pipeline
+- OCR processing
 
-Python
+**Frontend**
 
-FastAPI
+- React
 
-SSE Streaming
+**Platform Integration**
 
-AI
+- Browser extension
+- Local runtime services
 
-Ollama (LLaMA3)
+---
 
-SpeechRecognition
+## System Flow
 
-Tesseract OCR
+User Input  
+→ Interface Layer (Browser / Extension)  
+→ Local Backend  
+→ AI Processing Tools  
+→ Local LLM Reasoning  
+→ Streaming Response
 
-Platform
+---
 
-Chrome Extension
+## Running the Project
 
-Windows Background Service
+The repository includes a **local runtime launcher** which initializes the backend services and AI runtime.
 
-**Installation**
-1. Install Python
+Once the local runtime is active, the assistant interface becomes accessible through the browser.
 
-Install Python 3.10+
+---
 
-Check installation:
+## Browser Extension
 
-python --version
-**2. Install Ollama**
+The assistant can also be accessed via a lightweight **browser extension** that connects to the local AI backend.
 
-Download:
+This enables contextual interaction within the browser while maintaining **local AI execution and privacy-focused processing**.
 
-https://ollama.com/download
+---
 
-Pull model:
+## Project Focus
 
-ollama pull llama3
+This project focuses on practical exploration of:
 
-Check installation:
+- Local AI system architecture
+- Multimodal AI interaction
+- Real-time inference pipelines
+- Privacy-first AI applications
+- Browser-integrated AI assistants
 
-ollama list
-**3. Install Tesseract OCR**
+---
 
-Install from:
+## Resume Summary
 
-https://github.com/UB-Mannheim/tesseract/wiki
+**Multimodal Local LLM AI Agent**
 
-Default path:
+Built a multimodal AI assistant supporting voice interaction, screen OCR, and contextual chat using a locally hosted large language model.
 
-C:\Program Files\Tesseract-OCR
-**4. Install FFmpeg**
+Designed a streaming backend architecture and modular tool pipeline for multimodal AI interaction.
 
-Download:
+Integrated the assistant with a browser extension to enable privacy-focused local AI interaction without external APIs.
 
-https://ffmpeg.org/download.html
+---
 
-Extract and add to system path.
+## Note
 
-**5. Install Python Dependencies**
-
-Inside project folder:
-
-pip install fastapi uvicorn ollama pytesseract pyautogui pillow numpy opencv-python speechrecognition pydub mss
-Running the Assistant
-Automatic Start (Recommended)
-
-Double click:
-
-start_ai_assistant.bat
-
-This starts:
-
-FastAPI backend
-
-Ollama server
-
-Test Backend
-
-Open browser:
-
-http://localhost:8000/test
-
-Expected output:
-
-Server is accessible
-Start Frontend
-cd frontend
-npm install
-npm start
-
-Open:
-
-http://localhost:3001
-Browser Extension Setup
-
-**Open Chrome:**
-
-chrome://extensions
-
-Enable:
-
-Developer Mode
-
-Click:
-
-Load Unpacked
-
-Select:
-
-extension/
-
-Extension will appear in toolbar.
-
-How To Use
-Step 1
-
-Double click:
-
-start_ai_assistant.bat
-Step 2
-
-Open:
-
-http://localhost:3001
-Step 3
-
-Click:
-
-Get Started
-
-Assistant loads.
-
-Voice Input
-
-Click microphone button.
-
-Speak normally.
-
-Speech → Text → AI Response.
-
-Screen Reading
-
-Click:
-
-Read Screen
-
-Select:
-
-Entire screen
-
-Window
-
-Tab
-
-Text will be extracted using OCR.
-
-Autonomous Context Detection
-
-Assistant detects websites automatically.
-
-Examples:
-
-Amazon → Shopping suggestions
-
-YouTube → Learning suggestions
-
-GitHub → Coding suggestions
-
-Background Service (Jarvis Mode)
-
-Run once:
-
-setup_autostart.bat
-
-Assistant will start automatically when Windows starts.
-
-Manual Start
-
-Start backend:
-
-python test_server.py
-
-Start Ollama:
-
-ollama serve
-
-Start frontend:
-
-npm start
-Troubleshooting
-Ollama Port Error
-bind: Only one usage of each socket address permitted
-
-Means Ollama is already running.
-
-Safe to ignore.
-
-Backend Not Running
-
-Run:
-
-python test_server.py
-Ollama Not Running
-
-Run:
-
-ollama serve
+This repository demonstrates the **system architecture and research exploration** behind building a multimodal local AI assistant.
