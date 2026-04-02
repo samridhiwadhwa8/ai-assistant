@@ -4,12 +4,12 @@ A Chrome browser extension that provides a floating AI assistant for screen anal
 
 ## Features
 
-🎯 **Floating UI** - Always-on-top assistant window that floats on any webpage  
-📸 **Screen Capture** - Capture entire screen, specific windows, or current tab  
-🤖 **AI Analysis** - Powered by LLaMA 3 for intelligent screen content analysis  
-🎤 **Voice Input** - Hands-free voice commands and questions  
-💬 **Chat Interface** - Natural conversation about captured content  
-🔄 **Cross-Tab** - Works across any open tabs and applications  
+**Floating UI** - Always-on-top assistant window that floats on any webpage  
+**Screen Capture** - Capture entire screen, specific windows, or current tab  
+**AI Analysis** - Powered by LLaMA 3 for intelligent screen content analysis  
+**Voice Input** - Hands-free voice commands and questions  
+**Chat Interface** - Natural conversation about captured content  
+**Cross-Tab** - Works across any open tabs and applications  
 
 ## Installation
 
@@ -164,17 +164,3 @@ const response = await fetch('http://localhost:8000/chat', {
 - Use debouncing for voice recognition
 - Implement proper error handling
 
-## Future Enhancements
-
-- [ ] Content script for page injection
-- [ ] Keyboard shortcuts
-- [ ] Custom themes and styling
-- [ ] Multiple language support
-- [ ] Advanced capture modes
-- [ ] Integration with more AI models
-- [ ] Cloud storage for conversations
-- [ ] Team collaboration features
-
-## License
-
-MIT License - see LICENSE file for details
